@@ -12,7 +12,6 @@ import dotenv from 'dotenv';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import mongoose from 'mongoose';
-import bcrypt from 'bcryptjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 dotenv.config({ path: path.resolve(__dirname, '../../.env') });
@@ -97,14 +96,13 @@ export const setupPhase3DemoData = async () => {
   console.log('🚀 SEEDING PHASE 3 ISOLATED QA CAMPAIGN (GW-QA-PHASE3)');
   console.log('====================================================\n');
 
-  // 2. Create QA Users
+  // 2. Create QA Users (pass plaintext password to let Mongoose pre-save hook hash it exactly once)
   for (const u of QA_USERS) {
-    const passwordHash = await bcrypt.hash(u.password, 10);
     await User.create({
       userId: u.userId,
       username: u.username,
       email: u.email,
-      password: passwordHash,
+      password: u.password, // Standard registration flow: pre-save hook handles hashing
       role: 'user',
       maskedId: u.maskedId,
       wallet: u.wallet,
