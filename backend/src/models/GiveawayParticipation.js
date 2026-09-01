@@ -54,7 +54,10 @@ const giveawayParticipationSchema = new mongoose.Schema(
     },
     idempotencyKey: {
       type: String,
-      index: true,
+    },
+    requestFingerprint: {
+      type: String,
+      default: null,
     },
     joinedAt: {
       type: Date,
@@ -66,8 +69,17 @@ const giveawayParticipationSchema = new mongoose.Schema(
   }
 );
 
-// MANDATORY RULE: Compound unique database index guaranteeing one participation record per user per prize giveaway
+// MANDATORY RULE 1: Compound unique database index guaranteeing one participation record per user per prize giveaway
 giveawayParticipationSchema.index({ userId: 1, giveawayId: 1, prizeId: 1 }, { unique: true });
+
+// MANDATORY RULE 2: Database-enforced partial unique idempotency index scoped to user + key
+giveawayParticipationSchema.index(
+  { userId: 1, idempotencyKey: 1 },
+  {
+    unique: true,
+    partialFilterExpression: { idempotencyKey: { $type: 'string' } },
+  }
+);
 
 const GiveawayParticipation = mongoose.model('GiveawayParticipation', giveawayParticipationSchema);
 export default GiveawayParticipation;

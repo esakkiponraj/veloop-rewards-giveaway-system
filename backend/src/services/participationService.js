@@ -2,6 +2,7 @@ import mongoose from 'mongoose';
 import { repo } from '../utils/repository.js';
 import { evaluateFraudRisk } from './fraudService.js';
 import User from '../models/User.js';
+import GiveawayParticipation from '../models/GiveawayParticipation.js';
 
 // Strict server-side allowlist mapping for currency fields to prevent prototype or field path injection
 const ALLOWED_CURRENCY_MAP = Object.freeze({
@@ -85,7 +86,60 @@ export const processJoinGiveaway = async ({
     throw error;
   }
 
-  // 5. Strict Currency Allowlist Validation
+  // Generate deterministic request fingerprint
+  const requestFingerprint = `JOIN:${giveaway.giveawayId}:${prize.prizeId}`;
+
+  // 5. Database-Enforced Idempotency Verification
+  if (idempotencyKey && typeof idempotencyKey === 'string' && idempotencyKey.trim().length > 0) {
+    const existingByIdempotency = await GiveawayParticipation.findOne({
+      userId: user.userId,
+      idempotencyKey: idempotencyKey.trim(),
+    });
+
+    if (existingByIdempotency) {
+      // Check if the idempotency key was reused for a DIFFERENT prize or giveaway payload
+      if (
+        existingByIdempotency.giveawayId !== giveaway.giveawayId ||
+        existingByIdempotency.prizeId !== prize.prizeId ||
+        (existingByIdempotency.requestFingerprint && existingByIdempotency.requestFingerprint !== requestFingerprint)
+      ) {
+        const error = new Error(
+          'Idempotency key has already been used for a different request payload. Please generate a new key for different requests.'
+        );
+        error.code = 'IDEMPOTENCY_KEY_REUSED';
+        error.statusCode = 409;
+        throw error;
+      }
+
+      // Same request payload -> return idempotent original response
+      const currentUser = await repo.findUserById(user.userId);
+      return {
+        success: true,
+        alreadyJoined: true,
+        giveawayId: giveaway.giveawayId,
+        prize: { prizeId: prize.prizeId, name: prize.name, image: prize.image },
+        participation: {
+          userId: user.userId,
+          maskedId: user.maskedId,
+          giveawayId: giveaway.giveawayId,
+          prizeId: prize.prizeId,
+          prizeName: prize.name,
+          prizeImage: prize.image,
+          entryCount: existingByIdempotency.entryCount || 1,
+          entryCurrency: existingByIdempotency.entryCurrency,
+          entryAmount: existingByIdempotency.entryAmount,
+          joinedAt: existingByIdempotency.joinedAt,
+          transactionId: existingByIdempotency.transactionId,
+        },
+        transactionId: existingByIdempotency.transactionId,
+        joinedAt: existingByIdempotency.joinedAt,
+        wallet: currentUser ? currentUser.wallet : user.wallet,
+        message: "You're already participating in this prize giveaway.",
+      };
+    }
+  }
+
+  // 6. Strict Currency Allowlist Validation
   const requiredCurrency = prize.entryCurrency;
   const walletFieldPath = ALLOWED_CURRENCY_MAP[requiredCurrency];
   if (!walletFieldPath) {
@@ -95,7 +149,7 @@ export const processJoinGiveaway = async ({
     throw error;
   }
 
-  // 6. Check if user already participated in this specific Prize Giveaway (Idempotency pre-check)
+  // 7. Check if user already participated in this specific Prize Giveaway (Duplicate check)
   const existingParticipation = await repo.getUserParticipation(user.userId, giveaway.giveawayId, prize.prizeId);
   if (existingParticipation) {
     const currentUser = await repo.findUserById(user.userId);
@@ -119,12 +173,12 @@ export const processJoinGiveaway = async ({
       },
       transactionId: existingParticipation.transactionId,
       joinedAt: existingParticipation.joinedAt,
-      wallet: currentUser.wallet,
+      wallet: currentUser ? currentUser.wallet : user.wallet,
       message: "You're already participating in this prize giveaway.",
     };
   }
 
-  // 7. Fraud & Abuse Check (Multi-signal telemetry)
+  // 8. Fraud & Abuse Check (Multi-signal telemetry)
   const fraudCheck = await evaluateFraudRisk({
     userId: user.userId,
     giveawayId: giveaway.giveawayId,
@@ -152,7 +206,7 @@ export const processJoinGiveaway = async ({
     throw error;
   }
 
-  // 8. Authoritative Fee & Balance Check
+  // 9. Authoritative Fee & Balance Check
   const requiredAmount = prize.entryAmount;
   const currentBalance = user.wallet[requiredCurrency] || 0;
 
@@ -172,14 +226,14 @@ export const processJoinGiveaway = async ({
     throw error;
   }
 
-  // 9. Atomic Session & Transaction Execution
+  // 10. Atomic Session & Transaction Execution
   const session = await mongoose.startSession();
   session.startTransaction();
 
   try {
     const transactionId = `TXN-GW-${Date.now()}-${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
 
-    // 9a. Atomic conditional balance deduction using strict allowlist path
+    // 10a. Atomic conditional balance deduction using strict allowlist path
     const updatedUser = await User.findOneAndUpdate(
       {
         userId: user.userId,
@@ -201,7 +255,7 @@ export const processJoinGiveaway = async ({
     const balanceBefore = currentBalance;
     const balanceAfter = updatedUser.wallet[requiredCurrency];
 
-    // 9b. Create Participation record with entryCount = 1
+    // 10b. Create Participation record with entryCount = 1, fingerprint and idempotencyKey
     const participation = await repo.createParticipation(
       {
         userId: user.userId,
@@ -214,13 +268,14 @@ export const processJoinGiveaway = async ({
         ipAddress,
         status: fraudCheck.action === 'FLAGGED' ? 'FLAGGED' : 'ACTIVE',
         transactionId,
-        idempotencyKey: idempotencyKey || null,
+        idempotencyKey: idempotencyKey ? idempotencyKey.trim() : null,
+        requestFingerprint,
         joinedAt: new Date(),
       },
       session
     );
 
-    // 9c. Create Transaction Record
+    // 10c. Create Transaction Record
     const transaction = await repo.createTransaction(
       {
         transactionId,
@@ -242,7 +297,7 @@ export const processJoinGiveaway = async ({
       session
     );
 
-    // 9d. Create Audit Log
+    // 10d. Create Audit Log
     await repo.createAuditLog(
       {
         logId: `AUD-${Date.now()}-${Math.floor(1000 + Math.random() * 9000)}`,
@@ -298,9 +353,52 @@ export const processJoinGiveaway = async ({
     await session.abortTransaction();
     session.endSession();
 
-    // Idempotent recovery: if a concurrent request already committed the participation
+    // Idempotent recovery for concurrent execution
     for (let retry = 0; retry < 3; retry++) {
       await new Promise((r) => setTimeout(r, 100 * (retry + 1)));
+
+      if (idempotencyKey) {
+        const existingKey = await GiveawayParticipation.findOne({
+          userId: user.userId,
+          idempotencyKey: idempotencyKey.trim(),
+        });
+        if (existingKey) {
+          if (
+            existingKey.giveawayId !== giveaway.giveawayId ||
+            existingKey.prizeId !== prize.prizeId ||
+            (existingKey.requestFingerprint && existingKey.requestFingerprint !== requestFingerprint)
+          ) {
+            const error = new Error('Idempotency key has already been used for a different request payload.');
+            error.code = 'IDEMPOTENCY_KEY_REUSED';
+            error.statusCode = 409;
+            throw error;
+          }
+
+          const currentUser = await repo.findUserById(user.userId);
+          return {
+            success: true,
+            alreadyJoined: true,
+            giveawayId: giveaway.giveawayId,
+            prize: { prizeId: prize.prizeId, name: prize.name, image: prize.image },
+            participation: {
+              userId: user.userId,
+              maskedId: user.maskedId,
+              giveawayId: giveaway.giveawayId,
+              prizeId: prize.prizeId,
+              prizeName: prize.name,
+              prizeImage: prize.image,
+              entryCount: existingKey.entryCount || 1,
+              entryCurrency: existingKey.entryCurrency,
+              entryAmount: existingKey.entryAmount,
+              joinedAt: existingKey.joinedAt,
+              transactionId: existingKey.transactionId,
+            },
+            wallet: currentUser ? currentUser.wallet : user.wallet,
+            message: "You're already participating in this prize giveaway.",
+          };
+        }
+      }
+
       const existing = await repo.getUserParticipation(user.userId, giveaway.giveawayId, prize.prizeId);
       if (existing) {
         const currentUser = await repo.findUserById(user.userId);
