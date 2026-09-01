@@ -302,13 +302,17 @@ export const repo = {
   // WINNERS OPERATIONS (Strict Persistent MongoDB)
   // =========================================================================
   getGiveawayWinners: async (giveawayId) => {
-    ensureMongoConnected();
-    return await GiveawayWinner.find({ giveawayId }).sort({ selectedAt: -1 });
+    if (isMongoConnected()) {
+      return await GiveawayWinner.find({ giveawayId }).sort({ selectedAt: -1 });
+    }
+    return (inMemoryDB.winners || []).filter((w) => w.giveawayId === giveawayId);
   },
 
   getAllPreviousWinners: async () => {
-    ensureMongoConnected();
-    return await GiveawayWinner.find({}).sort({ selectedAt: -1 }).limit(50);
+    if (isMongoConnected()) {
+      return await GiveawayWinner.find({}).sort({ selectedAt: -1 }).limit(50);
+    }
+    return inMemoryDB.winners || [];
   },
 
   getUserWinnerRecord: async (userId, giveawayId, prizeId = null) => {

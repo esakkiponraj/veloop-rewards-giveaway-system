@@ -33,26 +33,31 @@ export const GiveawayHome = () => {
     setLoading(true);
     setError(null);
     try {
-      const [currentRes, prevRes, prevWinnersRes] = await Promise.all([
+      const [currentResResult, prevResResult, prevWinnersResResult] = await Promise.allSettled([
         getCurrentGiveaway(),
         getPreviousGiveaways(),
         getAllPreviousWinners(),
       ]);
 
-      if (currentRes.success) {
-        setData(currentRes);
+      if (currentResResult.status === 'fulfilled' && currentResResult.value?.success) {
+        setData(currentResResult.value);
+      } else if (currentResResult.status === 'rejected') {
+        throw currentResResult.reason;
       }
-      if (prevRes.success) {
-        setPreviousGiveaways(prevRes.giveaways || []);
+
+      if (prevResResult.status === 'fulfilled' && prevResResult.value?.success) {
+        setPreviousGiveaways(prevResResult.value.giveaways || []);
       }
-      if (prevWinnersRes.success) {
-        setPreviousWinners(prevWinnersRes.winners || []);
+
+      if (prevWinnersResResult.status === 'fulfilled' && prevWinnersResResult.value?.success) {
+        setPreviousWinners(prevWinnersResResult.value.winners || []);
       }
 
       // If user logged in, fetch personal status
-      if (user && currentRes.giveaway) {
+      const currentGw = currentResResult.status === 'fulfilled' ? currentResResult.value?.giveaway : null;
+      if (user && currentGw) {
         try {
-          const statusRes = await getMyGiveawayStatus(currentRes.giveaway.giveawayId);
+          const statusRes = await getMyGiveawayStatus(currentGw.giveawayId);
           if (statusRes.success) {
             setUserStatus(statusRes);
           }
