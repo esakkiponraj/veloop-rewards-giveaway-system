@@ -1,11 +1,11 @@
 /**
- * Development-Only Phase 3 Demo Setup Script
+ * Development-Only Phase 3 Demo Setup & Cleanup Utility
  *
- * Creates an isolated test ended campaign GW-QA-ENDED with small winner counts
- * and 3 test participants so reviewers can test admin lifecycle controls,
- * winner draws, and claim fulfillment on demand.
+ * Usage:
+ *   Setup QA Campaign:   node backend/src/utils/setupPhase3Demo.js
+ *   Cleanup QA Campaign: node backend/src/utils/setupPhase3Demo.js --cleanup
  *
- * NOTE: This script is for manual QA only and NEVER runs automatically during normal startup.
+ * NOTE: This script is for manual developer QA only and NEVER runs automatically during normal startup.
  */
 
 import dotenv from 'dotenv';
@@ -21,143 +21,213 @@ import Giveaway from '../models/Giveaway.js';
 import Prize from '../models/Prize.js';
 import User from '../models/User.js';
 import GiveawayParticipation from '../models/GiveawayParticipation.js';
+import GiveawayWinner from '../models/GiveawayWinner.js';
+import PrizeClaim from '../models/PrizeClaim.js';
+import AuditLog from '../models/AuditLog.js';
 
-export const setupPhase3DemoData = async () => {
+export const QA_CAMPAIGN_ID = 'GW-QA-PHASE3';
+export const QA_PRIZE_IPHONE = 'PRIZE-QA-IPHONE';
+export const QA_PRIZE_AMAZON = 'PRIZE-QA-AMAZON';
+
+export const QA_USERS = [
+  {
+    userId: 'QA-USR-ALEX',
+    username: 'QA Alex Vance',
+    email: 'qa.alex@veloop.io',
+    password: 'password123',
+    maskedId: 'QA****A1',
+    wallet: { VEs: 1000, SVEs: 1500, Tokens: 5000 },
+  },
+  {
+    userId: 'QA-USR-BOB',
+    username: 'QA Bob Vance',
+    email: 'qa.bob@veloop.io',
+    password: 'password123',
+    maskedId: 'QA****B2',
+    wallet: { VEs: 1000, SVEs: 1500, Tokens: 5000 },
+  },
+  {
+    userId: 'QA-USR-CAROL',
+    username: 'QA Carol Danvers',
+    email: 'qa.carol@veloop.io',
+    password: 'password123',
+    maskedId: 'QA****C3',
+    wallet: { VEs: 1000, SVEs: 1500, Tokens: 5000 },
+  },
+  {
+    userId: 'QA-USR-DAVID',
+    username: 'QA David Miller',
+    email: 'qa.david@veloop.io',
+    password: 'password123',
+    maskedId: 'QA****D4',
+    wallet: { VEs: 1000, SVEs: 1500, Tokens: 5000 },
+  },
+];
+
+export const cleanupPhase3DemoData = async () => {
   const isMongo = mongoose.connection.readyState === 1;
-  console.log('Setting up Phase 3 Isolated QA Demo Campaign (GW-QA-ENDED)...');
-
-  const qaCampaignId = 'GW-QA-ENDED';
-
   if (!isMongo) {
-    console.log('[Notice] MongoDB offline. Skipping QA persistent seed.');
+    console.log('[Notice] MongoDB is not connected.');
     return;
   }
 
-  // 1. Create or upsert QA Ended Campaign
-  await Giveaway.findOneAndUpdate(
-    { giveawayId: qaCampaignId },
-    {
-      $set: {
-        giveawayId: qaCampaignId,
-        slug: 'qa-ended-test-giveaway',
-        title: 'VELOOP QA Ended Test Campaign (Phase 3 Demo)',
-        description: 'Dedicated test campaign in ENDED status ready for admin winner selection and claims demonstration.',
-        bannerImage: '/assets/giveaways/qa-banner.svg',
-        status: 'ENDED',
-        totalParticipants: 3,
-        startAt: new Date(Date.now() - 14 * 24 * 60 * 60 * 1000),
-        endAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000),
-      },
-    },
-    { upsert: true, new: true }
-  );
+  const qaUserIds = QA_USERS.map((u) => u.userId);
+  await User.deleteMany({ userId: { $in: qaUserIds } });
+  await Giveaway.deleteMany({ giveawayId: QA_CAMPAIGN_ID });
+  await Prize.deleteMany({ giveawayId: QA_CAMPAIGN_ID });
+  await GiveawayParticipation.deleteMany({ giveawayId: QA_CAMPAIGN_ID });
+  await GiveawayWinner.deleteMany({ giveawayId: QA_CAMPAIGN_ID });
+  await PrizeClaim.deleteMany({ giveawayId: QA_CAMPAIGN_ID });
+  await AuditLog.deleteMany({ giveawayId: QA_CAMPAIGN_ID });
 
-  // 2. Create 2 test prizes
-  await Prize.findOneAndUpdate(
-    { prizeId: 'PRIZE-QA-WATCH' },
-    {
-      $set: {
-        prizeId: 'PRIZE-QA-WATCH',
-        giveawayId: qaCampaignId,
-        name: 'Apple Watch Series 9 (QA Demo)',
-        slug: 'qa-apple-watch',
-        tagline: 'Space Black 45mm GPS · Test Unit',
-        description: 'Physical prize demonstration for winner selection and shipping address claim flow.',
-        prizeType: 'PHYSICAL',
-        entryCurrency: 'VEs',
-        entryAmount: 100,
-        winnerCount: 1,
-        position: '1st Prize',
-        positionRank: 1,
-        image: '/assets/prizes/applewatch.svg',
-        isPendingConfirmation: false,
-      },
-    },
-    { upsert: true, new: true }
-  );
+  console.log('\n🧹 [CLEANUP COMPLETE] Removed all QA Demo records (Campaign GW-QA-PHASE3, test prizes, participations, winners, claims, and QA users).\n');
+};
 
-  await Prize.findOneAndUpdate(
-    { prizeId: 'PRIZE-QA-AMAZON' },
-    {
-      $set: {
-        prizeId: 'PRIZE-QA-AMAZON',
-        giveawayId: qaCampaignId,
-        name: '₹500 Amazon Gift Voucher (QA Demo)',
-        slug: 'qa-amazon-500',
-        tagline: 'Instant Digital Voucher · Test Unit',
-        description: 'Digital gift card demonstration for winner selection and email fulfillment claim flow.',
-        prizeType: 'GIFT_CARD',
-        entryCurrency: 'VEs',
-        entryAmount: 50,
-        winnerCount: 1,
-        position: '2nd Prize',
-        positionRank: 2,
-        image: '/assets/prizes/amazon.svg',
-        isPendingConfirmation: false,
-      },
-    },
-    { upsert: true, new: true }
-  );
-
-  // 3. Ensure test users participate
-  const participants = [
-    { userId: 'VE10842', entryCount: 5 }, // Alex Vance (weight: 5)
-    { userId: 'VE10012', entryCount: 1 }, // Jordan Lee (weight: 1)
-    { userId: 'VE10099', entryCount: 2 }, // Modal Tester (weight: 2)
-  ];
-
-  for (const p of participants) {
-    await GiveawayParticipation.findOneAndUpdate(
-      { giveawayId: qaCampaignId, prizeId: 'PRIZE-QA-WATCH', userId: p.userId },
-      {
-        $set: {
-          giveawayId: qaCampaignId,
-          prizeId: 'PRIZE-QA-WATCH',
-          userId: p.userId,
-          entryCount: p.entryCount,
-          entryCurrency: 'VEs',
-          entryAmount: 100,
-          status: 'ACTIVE',
-          joinedAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000),
-          transactionId: `TXN-QA-${p.userId}-WATCH`,
-        },
-      },
-      { upsert: true, new: true }
-    );
-
-    await GiveawayParticipation.findOneAndUpdate(
-      { giveawayId: qaCampaignId, prizeId: 'PRIZE-QA-AMAZON', userId: p.userId },
-      {
-        $set: {
-          giveawayId: qaCampaignId,
-          prizeId: 'PRIZE-QA-AMAZON',
-          userId: p.userId,
-          entryCount: p.entryCount,
-          entryCurrency: 'VEs',
-          entryAmount: 50,
-          status: 'ACTIVE',
-          joinedAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000),
-          transactionId: `TXN-QA-${p.userId}-AMZ`,
-        },
-      },
-      { upsert: true, new: true }
-    );
+export const setupPhase3DemoData = async () => {
+  const isMongo = mongoose.connection.readyState === 1;
+  if (!isMongo) {
+    console.log('[Notice] MongoDB offline. Cannot seed persistent QA demo.');
+    return;
   }
 
-  console.log('✅ Phase 3 Isolated QA Demo Campaign successfully seeded with 3 active participants.');
+  // 1. Clean previous QA run
+  await cleanupPhase3DemoData();
+
+  console.log('\n====================================================');
+  console.log('🚀 SEEDING PHASE 3 ISOLATED QA CAMPAIGN (GW-QA-PHASE3)');
+  console.log('====================================================\n');
+
+  // 2. Create QA Users
+  for (const u of QA_USERS) {
+    const passwordHash = await bcrypt.hash(u.password, 10);
+    await User.create({
+      userId: u.userId,
+      username: u.username,
+      email: u.email,
+      password: passwordHash,
+      role: 'user',
+      maskedId: u.maskedId,
+      wallet: u.wallet,
+    });
+  }
+
+  // 3. Create QA ACTIVE Campaign
+  const now = new Date();
+  const futureEnd = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+
+  const campaign = await Giveaway.create({
+    giveawayId: QA_CAMPAIGN_ID,
+    title: 'VELOOP QA Testing Campaign (Phase 3 Demo)',
+    slug: 'qa-phase3-demo-campaign',
+    description: 'Dedicated QA Campaign created in ACTIVE status for testing Admin Lifecycle Controls, Winner Selection, and Claim Flows.',
+    bannerImage: '/assets/giveaways/qa-banner.svg',
+    status: 'ACTIVE', // Active by default so admin can test ACTIVE -> ENDED -> Draw
+    totalParticipants: 4,
+    startAt: new Date(now.getTime() - 3 * 24 * 60 * 60 * 1000),
+    endAt: futureEnd,
+  });
+
+  // 4. Create QA Physical & Digital Prizes
+  const prizePhone = await Prize.create({
+    prizeId: QA_PRIZE_IPHONE,
+    giveawayId: QA_CAMPAIGN_ID,
+    name: 'QA iPhone 15 Pro (Physical Prize)',
+    slug: 'qa-iphone-15-pro',
+    description: 'Flagship titanium smartphone for QA physical shipping claim testing.',
+    position: '1st Prize',
+    positionRank: 1,
+    image: '/assets/prizes/iphone15pro.svg',
+    prizeType: 'PHYSICAL',
+    entryCurrency: 'VEs',
+    entryAmount: 100,
+    winnerCount: 1,
+    isPendingConfirmation: false,
+  });
+
+  const prizeAmazon = await Prize.create({
+    prizeId: QA_PRIZE_AMAZON,
+    giveawayId: QA_CAMPAIGN_ID,
+    name: 'QA ₹1,000 Amazon Voucher (Digital Prize)',
+    slug: 'qa-amazon-1000',
+    description: 'Instant digital gift card for QA email voucher claim testing.',
+    position: '2nd Prize',
+    positionRank: 2,
+    image: '/assets/prizes/amazon.svg',
+    prizeType: 'GIFT_CARD',
+    entryCurrency: 'VEs',
+    entryAmount: 50,
+    winnerCount: 1,
+    isPendingConfirmation: false,
+  });
+
+  // 5. Seed Eligible Participations with Varied Weights
+  const participations = [
+    // Prize 1: Phone (Alex: 5 entries, Bob: 1 entry, Carol: 2 entries)
+    { userId: 'QA-USR-ALEX', prizeId: QA_PRIZE_IPHONE, entryCount: 5, amount: 100, currency: 'VEs' },
+    { userId: 'QA-USR-BOB', prizeId: QA_PRIZE_IPHONE, entryCount: 1, amount: 100, currency: 'VEs' },
+    { userId: 'QA-USR-CAROL', prizeId: QA_PRIZE_IPHONE, entryCount: 2, amount: 100, currency: 'VEs' },
+
+    // Prize 2: Amazon Voucher (Alex: 2 entries, Carol: 3 entries, David: 1 entry)
+    { userId: 'QA-USR-ALEX', prizeId: QA_PRIZE_AMAZON, entryCount: 2, amount: 50, currency: 'VEs' },
+    { userId: 'QA-USR-CAROL', prizeId: QA_PRIZE_AMAZON, entryCount: 3, amount: 50, currency: 'VEs' },
+    { userId: 'QA-USR-DAVID', prizeId: QA_PRIZE_AMAZON, entryCount: 1, amount: 50, currency: 'VEs' },
+  ];
+
+  for (const p of participations) {
+    await GiveawayParticipation.create({
+      giveawayId: QA_CAMPAIGN_ID,
+      prizeId: p.prizeId,
+      userId: p.userId,
+      entryCount: p.entryCount,
+      entryCurrency: p.currency,
+      entryAmount: p.amount,
+      deviceHash: `DEV-HASH-${p.userId}`,
+      status: 'ACTIVE',
+      joinedAt: new Date(now.getTime() - 1 * 24 * 60 * 60 * 1000),
+      transactionId: `TXN-QA-${p.userId}-${p.prizeId.slice(-6)}`,
+    });
+  }
+
+  console.log('✅ QA Campaign Seeded Successfully!\n');
+  console.log('----------------------------------------------------');
+  console.log('📋 QA DEMO LOGIN CREDENTIALS & MASKED IDs MATRIX');
+  console.log('----------------------------------------------------');
+  console.table(
+    QA_USERS.map((u) => ({
+      'Email / Username': u.email,
+      Password: u.password,
+      'Masked ID (Shown in Draw)': u.maskedId,
+      'User ID': u.userId,
+    }))
+  );
+  console.log('\n🎯 TEST INSTRUCTIONS:');
+  console.log('  1. Log in as admin (admin@veloop.io / admin123) and go to /admin.');
+  console.log('  2. In Campaign Controls, click "End Campaign" on GW-QA-PHASE3.');
+  console.log('  3. Click "Draw Winners" to trigger weighted selection.');
+  console.log('  4. Identify the winning masked ID from the matrix above.');
+  console.log('  5. Log in as that QA user, open /my-entries, and submit the physical/digital claim.');
+  console.log('  6. Return to /admin, go to Prize Claims, and process the fulfillment.');
+  console.log('\n🧹 TO CLEAN UP AFTER TESTING:');
+  console.log('  node backend/src/utils/setupPhase3Demo.js --cleanup\n');
 };
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
+  const isCleanup = process.argv.includes('--cleanup');
   const mongoUri = process.env.MONGO_URI || 'mongodb://localhost:27017/veloop_db';
+
   mongoose
     .connect(mongoUri)
     .then(async () => {
-      await setupPhase3DemoData();
+      if (isCleanup) {
+        await cleanupPhase3DemoData();
+      } else {
+        await setupPhase3DemoData();
+      }
       await mongoose.disconnect();
       process.exit(0);
     })
     .catch((err) => {
-      console.error('QA Seed error:', err);
+      console.error('QA Script Error:', err);
       process.exit(1);
     });
 }

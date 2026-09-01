@@ -26,6 +26,7 @@ const auditLogSchema = new mongoose.Schema(
         'DUPLICATE_ATTEMPT',
         'FRAUD_FLAGGED',
         'CLAIM_SUBMITTED',
+        'CLAIM_EXPIRED',
         'WINNER_SELECTED',
         'WINNERS_DRAWN',
         'ADMIN_EVENT_UPDATED',

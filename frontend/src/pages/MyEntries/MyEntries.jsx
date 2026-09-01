@@ -168,16 +168,29 @@ export const MyEntries = () => {
                             </div>
                           )}
 
-                          <button
-                            className="btn-veloop-gold"
-                            style={{ width: '100%', marginTop: '6px' }}
-                            onClick={() => {
-                              setSelectedClaimRecord(entry.winnerRecord);
-                              setClaimModalOpen(true);
-                            }}
-                          >
-                            {hasClaim ? 'View Claim & Fulfillment Status →' : 'Claim Your Prize Now →'}
-                          </button>
+                          {!hasClaim && entry.winnerRecord?.status === 'SELECTED' ? (
+                            <button
+                              className="btn-veloop-gold"
+                              style={{ width: '100%', marginTop: '6px' }}
+                              onClick={() => {
+                                setSelectedClaimRecord(entry.winnerRecord);
+                                setClaimModalOpen(true);
+                              }}
+                            >
+                              Claim Your Prize Now →
+                            </button>
+                          ) : (
+                            <button
+                              className="btn-veloop-secondary"
+                              style={{ width: '100%', marginTop: '6px' }}
+                              onClick={() => {
+                                setSelectedClaimRecord(entry.winnerRecord);
+                                setClaimModalOpen(true);
+                              }}
+                            >
+                              View Claim & Fulfillment Status →
+                            </button>
+                          )}
                         </>
                       )}
                     </div>

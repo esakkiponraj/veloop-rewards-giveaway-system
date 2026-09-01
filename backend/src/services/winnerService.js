@@ -79,7 +79,7 @@ export const computeCandidateSnapshotHash = (candidates) => {
 
 /**
  * Executes winner selection for a giveaway campaign across all linked prizes.
- * Enforces campaign status = ENDED, active participations, unique constraints, and audit trails.
+ * Enforces preflight participant validation, campaign status = ENDED, atomic winner creation, and audit trails.
  *
  * @param {object} params
  * @param {string} params.giveawayId - Giveaway identifier or slug
@@ -135,25 +135,23 @@ export const executeGiveawayDraw = async ({
     throw err;
   }
 
-  const drawRunId = `DRAW-${Date.now()}-${crypto.randomBytes(4).toString('hex').toUpperCase()}`;
-  const results = [];
-  let totalNewWinnersCount = 0;
+  // =========================================================================
+  // PREFLIGHT VALIDATION: Check all eligible prizes BEFORE creating ANY winner
+  // =========================================================================
+  const drawPlans = [];
 
   for (const prize of prizes) {
-    // 3. Skip prizes pending confirmation
+    // A. Skip prizes pending confirmation (does not block other prizes)
     if (prize.isPendingConfirmation) {
-      results.push({
-        prizeId: prize.prizeId,
-        prizeName: prize.name,
-        status: 'SKIPPED_PENDING_CONFIRMATION',
-        message: 'Prize value is pending final merchant confirmation. Draw skipped.',
-        winnerCount: 0,
-        winners: [],
+      drawPlans.push({
+        prize,
+        type: 'SKIPPED_PENDING_CONFIRMATION',
+        existingWinners: [],
       });
       continue;
     }
 
-    // 4. Check if winners already exist for this prize (Idempotent Draw)
+    // B. Check existing winners for this prize (Idempotent Draw Check)
     let existingWinners = [];
     if (isMongo) {
       existingWinners = await GiveawayWinner.find({
@@ -167,25 +165,15 @@ export const executeGiveawayDraw = async ({
     }
 
     if (existingWinners.length >= prize.winnerCount) {
-      results.push({
-        prizeId: prize.prizeId,
-        prizeName: prize.name,
-        status: 'ALREADY_DRAWN',
-        message: `Draw already completed for ${prize.name}. Returning existing winners.`,
-        winnerCount: existingWinners.length,
-        winners: existingWinners.map((w) => ({
-          winnerId: w._id || w.winnerId,
-          prizeName: w.prizeName,
-          prizeType: w.prizeType,
-          maskedUserId: w.maskedUserId,
-          selectedAt: w.selectedAt,
-          status: w.status,
-        })),
+      drawPlans.push({
+        prize,
+        type: 'ALREADY_DRAWN',
+        existingWinners,
       });
       continue;
     }
 
-    // 5. Query active, non-flagged, non-blocked, non-cancelled participations
+    // C. Query active, non-flagged, non-blocked participations
     let eligibleParticipations = [];
     if (isMongo) {
       eligibleParticipations = await GiveawayParticipation.find({
@@ -200,37 +188,23 @@ export const executeGiveawayDraw = async ({
       );
     }
 
-    // Deduplicate unique candidate user IDs
     const uniqueUserIds = [...new Set(eligibleParticipations.map((p) => p.userId))];
     const neededWinners = prize.winnerCount - existingWinners.length;
 
-    // 6. Insufficient Eligible Participants Check
+    // D. Preflight Insufficient Eligible Participants Check
+    // If ANY eligible prize fails, ABORT ENTIRE DRAW with HTTP 409 and create ZERO winners
     if (uniqueUserIds.length < neededWinners) {
-      // If targeting a specific prize and not enough participants, fail with 409
-      if (targetPrizeId || prizes.length === 1) {
-        const err = new Error(
-          `Insufficient eligible participants for prize "${prize.name}". Required: ${neededWinners}, Available distinct participants: ${uniqueUserIds.length}`
-        );
-        err.code = 'INSUFFICIENT_ELIGIBLE_PARTICIPANTS';
-        err.statusCode = 409;
-        err.required = neededWinners;
-        err.available = uniqueUserIds.length;
-        throw err;
-      }
-
-      results.push({
-        prizeId: prize.prizeId,
-        prizeName: prize.name,
-        status: 'FAILED_INSUFFICIENT_PARTICIPANTS',
-        message: `Insufficient eligible participants. Required: ${neededWinners}, Available: ${uniqueUserIds.length}`,
-        required: neededWinners,
-        available: uniqueUserIds.length,
-        winners: [],
-      });
-      continue;
+      const err = new Error(
+        `Insufficient eligible participants for prize "${prize.name}". Required: ${neededWinners}, Available distinct participants: ${uniqueUserIds.length}`
+      );
+      err.code = 'INSUFFICIENT_ELIGIBLE_PARTICIPANTS';
+      err.statusCode = 409;
+      err.prizeId = prize.prizeId;
+      err.requiredCount = neededWinners;
+      err.availableCount = uniqueUserIds.length;
+      throw err;
     }
 
-    // 7. Format candidates for weighted selection
     const candidateEntries = uniqueUserIds.map((uid) => {
       const userPart = eligibleParticipations.find((p) => p.userId === uid);
       return {
@@ -239,15 +213,64 @@ export const executeGiveawayDraw = async ({
       };
     });
 
+    drawPlans.push({
+      prize,
+      type: 'EXECUTE_DRAW',
+      neededWinners,
+      candidateEntries,
+      existingWinners,
+    });
+  }
+
+  // =========================================================================
+  // EXECUTION PHASE: All preflight checks passed. Persist winners & audit logs.
+  // =========================================================================
+  const drawRunId = `DRAW-${Date.now()}-${crypto.randomBytes(4).toString('hex').toUpperCase()}`;
+  const results = [];
+  let totalNewWinnersCount = 0;
+
+  for (const plan of drawPlans) {
+    const { prize, type } = plan;
+
+    if (type === 'SKIPPED_PENDING_CONFIRMATION') {
+      results.push({
+        prizeId: prize.prizeId,
+        prizeName: prize.name,
+        status: 'SKIPPED_PENDING_CONFIRMATION',
+        message: 'Prize value is pending final merchant confirmation. Draw skipped.',
+        winnerCount: 0,
+        winners: [],
+      });
+      continue;
+    }
+
+    if (type === 'ALREADY_DRAWN') {
+      results.push({
+        prizeId: prize.prizeId,
+        prizeName: prize.name,
+        status: 'ALREADY_DRAWN',
+        message: `Draw already completed for ${prize.name}. Returning existing winners.`,
+        winnerCount: plan.existingWinners.length,
+        winners: plan.existingWinners.map((w) => ({
+          winnerId: w._id || w.winnerId,
+          prizeName: w.prizeName,
+          prizeType: w.prizeType,
+          maskedUserId: w.maskedUserId,
+          selectedAt: w.selectedAt,
+          status: w.status,
+        })),
+      });
+      continue;
+    }
+
+    // Execute cryptographically weighted random selection
+    const { neededWinners, candidateEntries } = plan;
     const candidateSnapshotHash = computeCandidateSnapshotHash(candidateEntries);
     const totalEntryWeight = candidateEntries.reduce((sum, c) => sum + c.entryCount, 0);
-
-    // 8. Execute cryptographically secure weighted selection
     const selectedEntries = selectWeightedRandomWithoutReplacement(candidateEntries, neededWinners);
     const claimDeadline = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 calendar days
     const createdPrizeWinners = [];
 
-    // 9. Save Winners & Audit Records
     for (const entry of selectedEntries) {
       let maskedId = `VE****${entry.userId.slice(-2)}`;
       if (isMongo) {
@@ -286,7 +309,7 @@ export const executeGiveawayDraw = async ({
       totalNewWinnersCount++;
     }
 
-    // 10. Audit Log for this prize draw run
+    // Audit Log for this prize draw run (Zero PII)
     await repo.createAuditLog({
       logId: `AUD-DRAW-${Date.now()}-${Math.floor(1000 + Math.random() * 9000)}`,
       userId: adminUserId,

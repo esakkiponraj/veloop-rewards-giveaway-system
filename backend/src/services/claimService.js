@@ -29,8 +29,23 @@ export const processPrizeClaim = async ({
   // 2. Check if claim deadline expired
   const now = new Date();
   if (winnerRecord.claimDeadline && now > new Date(winnerRecord.claimDeadline)) {
-    winnerRecord.status = 'EXPIRED';
-    await winnerRecord.save();
+    if (winnerRecord.status !== 'EXPIRED') {
+      winnerRecord.status = 'EXPIRED';
+      await winnerRecord.save();
+      await repo.createAuditLog({
+        logId: `AUD-EXP-${Date.now()}-${Math.floor(1000 + Math.random() * 9000)}`,
+        userId,
+        giveawayId,
+        action: 'CLAIM_EXPIRED',
+        result: 'FAILURE',
+        metadata: {
+          prizeId: winnerRecord.prizeId,
+          reason: 'Claim deadline exceeded 7 calendar days.',
+        },
+        ipAddress,
+        userAgent,
+      });
+    }
     const error = new Error('The prize claim window has expired. Prize allocation forfeited.');
     error.code = 'CLAIM_DEADLINE_EXPIRED';
     error.statusCode = 400;
@@ -106,11 +121,11 @@ export const processPrizeClaim = async ({
   // 6. Save Claim
   const newClaim = await repo.createClaim(claimPayload);
 
-  // 7. Update Winner Record Status
+  // 7. Update Winner Record Status (SELECTED -> CLAIM_SUBMITTED)
   winnerRecord.status = 'CLAIM_SUBMITTED';
   await winnerRecord.save();
 
-  // 8. Audit Log
+  // 8. Audit Log (Zero Sensitive PII)
   await repo.createAuditLog({
     logId: `AUD-CLAIM-${Date.now()}-${Math.floor(1000 + Math.random() * 9000)}`,
     userId,
@@ -118,9 +133,11 @@ export const processPrizeClaim = async ({
     action: 'CLAIM_SUBMITTED',
     result: 'SUCCESS',
     metadata: {
+      claimId,
+      giveawayId,
       prizeId: winnerRecord.prizeId,
-      prizeName: winnerRecord.prizeName,
       claimType: prizeType,
+      winnerStatus: 'CLAIM_SUBMITTED',
     },
     ipAddress,
     userAgent,
@@ -137,10 +154,20 @@ export const getUserClaimStatus = async (userId, giveawayId) => {
   const winnerRecord = await repo.getUserWinnerRecord(userId, giveawayId);
   const claimRecord = await repo.getUserClaim(userId, giveawayId);
 
+  // Authoritative check and persistence for expired winners
+  if (winnerRecord && winnerRecord.status === 'SELECTED' && !claimRecord) {
+    if (winnerRecord.claimDeadline && new Date() > new Date(winnerRecord.claimDeadline)) {
+      winnerRecord.status = 'EXPIRED';
+      if (mongoose.connection.readyState === 1 && typeof winnerRecord.save === 'function') {
+        await winnerRecord.save();
+      }
+    }
+  }
+
   return {
     isWinner: !!winnerRecord,
     winner: winnerRecord || null,
     claim: claimRecord || null,
-    claimStatus: claimRecord ? claimRecord.status : winnerRecord ? 'NOT_SUBMITTED' : null,
+    claimStatus: claimRecord ? claimRecord.status : winnerRecord?.status === 'EXPIRED' ? 'EXPIRED' : winnerRecord ? 'NOT_SUBMITTED' : null,
   };
 };

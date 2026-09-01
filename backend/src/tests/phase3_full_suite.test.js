@@ -78,10 +78,11 @@ async function runPhase3Suite() {
   const TEST_USER_CHARLIE = 'USER-P3-CHARLIE';
   const TEST_CAMPAIGN_ACTIVE = 'GW-P3-ACTIVE';
   const TEST_CAMPAIGN_ENDED = 'GW-P3-ENDED';
+  const TEST_CAMPAIGN_INSUFFICIENT = 'GW-P3-INSUFFICIENT';
   const TEST_PRIZE_PHONE = 'PRIZE-P3-PHONE';
   const TEST_PRIZE_CARD = 'PRIZE-P3-CARD';
   const TEST_PRIZE_PENDING = 'PRIZE-P3-PENDING';
-  const TEST_PRIZE_SOLO = 'PRIZE-P3-SOLO';
+  const TEST_PRIZE_INSUFFICIENT = 'PRIZE-P3-INSUFFICIENT';
 
   let adminToken = '';
   let aliceToken = '';
@@ -91,19 +92,17 @@ async function runPhase3Suite() {
     // -------------------------------------------------------------------------
     // SETUP: Isolated Test Data
     // -------------------------------------------------------------------------
-    const pwdHash = bcrypt.hashSync('password123', 8);
-
     if (isMongo) {
       // Clean up previous test artifacts
       await User.deleteMany({ userId: { $in: [TEST_ADMIN_ID, TEST_USER_ALICE, TEST_USER_BOB, TEST_USER_CHARLIE] } });
-      await Giveaway.deleteMany({ giveawayId: { $in: [TEST_CAMPAIGN_ACTIVE, TEST_CAMPAIGN_ENDED] } });
-      await Prize.deleteMany({ prizeId: { $in: [TEST_PRIZE_PHONE, TEST_PRIZE_CARD, TEST_PRIZE_PENDING, TEST_PRIZE_SOLO] } });
-      await GiveawayParticipation.deleteMany({ giveawayId: { $in: [TEST_CAMPAIGN_ACTIVE, TEST_CAMPAIGN_ENDED] } });
-      await GiveawayWinner.deleteMany({ giveawayId: { $in: [TEST_CAMPAIGN_ACTIVE, TEST_CAMPAIGN_ENDED] } });
-      await PrizeClaim.deleteMany({ giveawayId: { $in: [TEST_CAMPAIGN_ACTIVE, TEST_CAMPAIGN_ENDED] } });
-      await AuditLog.deleteMany({ giveawayId: { $in: [TEST_CAMPAIGN_ACTIVE, TEST_CAMPAIGN_ENDED] } });
+      await Giveaway.deleteMany({ giveawayId: { $in: [TEST_CAMPAIGN_ACTIVE, TEST_CAMPAIGN_ENDED, TEST_CAMPAIGN_INSUFFICIENT] } });
+      await Prize.deleteMany({ prizeId: { $in: [TEST_PRIZE_PHONE, TEST_PRIZE_CARD, TEST_PRIZE_PENDING, TEST_PRIZE_INSUFFICIENT] } });
+      await GiveawayParticipation.deleteMany({ giveawayId: { $in: [TEST_CAMPAIGN_ACTIVE, TEST_CAMPAIGN_ENDED, TEST_CAMPAIGN_INSUFFICIENT] } });
+      await GiveawayWinner.deleteMany({ giveawayId: { $in: [TEST_CAMPAIGN_ACTIVE, TEST_CAMPAIGN_ENDED, TEST_CAMPAIGN_INSUFFICIENT] } });
+      await PrizeClaim.deleteMany({ giveawayId: { $in: [TEST_CAMPAIGN_ACTIVE, TEST_CAMPAIGN_ENDED, TEST_CAMPAIGN_INSUFFICIENT] } });
+      await AuditLog.deleteMany({ giveawayId: { $in: [TEST_CAMPAIGN_ACTIVE, TEST_CAMPAIGN_ENDED, TEST_CAMPAIGN_INSUFFICIENT] } });
 
-      // Create Admin & Users
+      // Create Admin & Users (plaintext password for Mongoose pre-save hook)
       await User.create([
         {
           userId: TEST_ADMIN_ID,
@@ -113,6 +112,7 @@ async function runPhase3Suite() {
           role: 'admin',
           maskedId: 'ADMIN****01',
           wallet: { VEs: 9999, SVEs: 9999, Tokens: 99999 },
+          referralCode: 'VELOOP-USER-P3-ADMIN',
         },
         {
           userId: TEST_USER_ALICE,
@@ -122,6 +122,7 @@ async function runPhase3Suite() {
           role: 'user',
           maskedId: 'VE****11',
           wallet: { VEs: 1000, SVEs: 1000, Tokens: 5000 },
+          referralCode: 'VELOOP-USER-P3-ALICE',
         },
         {
           userId: TEST_USER_BOB,
@@ -131,6 +132,7 @@ async function runPhase3Suite() {
           role: 'user',
           maskedId: 'VE****22',
           wallet: { VEs: 1000, SVEs: 1000, Tokens: 5000 },
+          referralCode: 'VELOOP-USER-P3-BOB',
         },
         {
           userId: TEST_USER_CHARLIE,
@@ -140,6 +142,7 @@ async function runPhase3Suite() {
           role: 'user',
           maskedId: 'VE****33',
           wallet: { VEs: 1000, SVEs: 1000, Tokens: 5000 },
+          referralCode: 'VELOOP-USER-P3-CHARLIE',
         },
       ]);
 
@@ -161,6 +164,16 @@ async function runPhase3Suite() {
           title: 'P3 Ended Campaign',
           description: 'P3 Ended Test Campaign for Winner Draw and Claims Validations',
           bannerImage: '/assets/giveaways/p3-ended.svg',
+          status: 'ENDED',
+          startAt: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000),
+          endAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000),
+        },
+        {
+          giveawayId: TEST_CAMPAIGN_INSUFFICIENT,
+          slug: 'p3-insufficient-campaign',
+          title: 'P3 Insufficient Test Campaign',
+          description: 'Campaign to prove draw atomicity on insufficient participants',
+          bannerImage: '/assets/giveaways/p3-insufficient.svg',
           status: 'ENDED',
           startAt: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000),
           endAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000),
@@ -208,17 +221,18 @@ async function runPhase3Suite() {
           winnerCount: 1,
           isPendingConfirmation: true,
         },
+        // Prize for insufficient campaign: Requires 3 winners, but only Charlie entered
         {
-          prizeId: TEST_PRIZE_SOLO,
-          giveawayId: TEST_CAMPAIGN_ENDED,
-          name: 'P3 Multi-Winner Prize (Needs 3 Winners)',
-          slug: 'p3-solo',
-          description: 'P3 Multi-winner test prize',
+          prizeId: TEST_PRIZE_INSUFFICIENT,
+          giveawayId: TEST_CAMPAIGN_INSUFFICIENT,
+          name: 'P3 Insufficient Prize (Requires 3 Winners)',
+          slug: 'p3-insufficient',
+          description: 'Prize to test atomic draw failure',
           image: '/assets/prizes/applewatch.svg',
           prizeType: 'PHYSICAL',
           entryCurrency: 'VEs',
           entryAmount: 50,
-          winnerCount: 3, // Requires 3 distinct participants
+          winnerCount: 3,
           isPendingConfirmation: false,
         },
       ]);
@@ -263,10 +277,10 @@ async function runPhase3Suite() {
           joinedAt: new Date(),
           transactionId: 'TXN-P3-BOB-CARD',
         },
-        // Solo prize: Only Charlie participated (1 distinct participant, requires 3 winners)
+        // Insufficient Campaign: Only 1 participant for 3 required winners
         {
-          giveawayId: TEST_CAMPAIGN_ENDED,
-          prizeId: TEST_PRIZE_SOLO,
+          giveawayId: TEST_CAMPAIGN_INSUFFICIENT,
+          prizeId: TEST_PRIZE_INSUFFICIENT,
           userId: TEST_USER_CHARLIE,
           entryCount: 5,
           entryCurrency: 'VEs',
@@ -274,7 +288,7 @@ async function runPhase3Suite() {
           deviceHash: 'DEV-TEST-HASH-3',
           status: 'ACTIVE',
           joinedAt: new Date(),
-          transactionId: 'TXN-P3-CHARLIE-SOLO',
+          transactionId: 'TXN-P3-CHARLIE-INSUFF',
         },
       ]);
     }
@@ -357,9 +371,32 @@ async function runPhase3Suite() {
     );
 
     // =========================================================================
-    // TEST 7, 8, 9: Winner Draw Execution, Skipped Pending, & Insufficient Handling
+    // TEST 7: Preflight Insufficient-Participants Check & Draw Atomicity
     // =========================================================================
-    console.log('\n[SECTION 4] Executing Campaign Winner Draw...');
+    console.log('\n[SECTION 4] Testing Draw Atomicity on Insufficient Participants...');
+    const failedDrawRes = await request(`/api/admin/giveaways/${TEST_CAMPAIGN_INSUFFICIENT}/draw-winners`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${adminToken}` },
+    });
+
+    assert(
+      failedDrawRes.status === 409 &&
+        failedDrawRes.data?.code === 'INSUFFICIENT_ELIGIBLE_PARTICIPANTS' &&
+        failedDrawRes.data?.prizeId === TEST_PRIZE_INSUFFICIENT &&
+        failedDrawRes.data?.requiredCount === 3 &&
+        failedDrawRes.data?.availableCount === 1,
+      'Preflight check blocks draw with HTTP 409 INSUFFICIENT_ELIGIBLE_PARTICIPANTS (required: 3, available: 1)'
+    );
+
+    if (isMongo) {
+      const winnerCountAfterFail = await GiveawayWinner.countDocuments({ giveawayId: TEST_CAMPAIGN_INSUFFICIENT });
+      assert(winnerCountAfterFail === 0, 'Failed draw leaves ZERO partially-created winner records (Atomic Draw Safety)');
+    }
+
+    // =========================================================================
+    // TEST 8 & 9: Successful Campaign Winner Draw & Skipped Pending
+    // =========================================================================
+    console.log('\n[SECTION 5] Executing Valid Campaign Winner Draw...');
     const drawRes = await request(`/api/admin/giveaways/${TEST_CAMPAIGN_ENDED}/draw-winners`, {
       method: 'POST',
       headers: { Authorization: `Bearer ${adminToken}` },
@@ -371,7 +408,6 @@ async function runPhase3Suite() {
     const phoneResult = results.find((r) => r.prizeId === TEST_PRIZE_PHONE);
     const cardResult = results.find((r) => r.prizeId === TEST_PRIZE_CARD);
     const pendingResult = results.find((r) => r.prizeId === TEST_PRIZE_PENDING);
-    const soloResult = results.find((r) => r.prizeId === TEST_PRIZE_SOLO);
 
     assert(phoneResult?.status === 'SUCCESS' && phoneResult.winners?.length === 1, 'Physical phone prize draw succeeded with 1 winner');
     assert(cardResult?.status === 'SUCCESS' && cardResult.winners?.length === 1, 'Gift card prize draw succeeded with 1 winner');
@@ -379,15 +415,11 @@ async function runPhase3Suite() {
       pendingResult?.status === 'SKIPPED_PENDING_CONFIRMATION',
       'Pending-confirmation prize safely skipped with status SKIPPED_PENDING_CONFIRMATION'
     );
-    assert(
-      soloResult?.status === 'FAILED_INSUFFICIENT_PARTICIPANTS' && soloResult.required === 3 && soloResult.available === 1,
-      'Insufficient participants handled safely (required: 3, available: 1)'
-    );
 
     // =========================================================================
-    // TEST 7 (Idempotency): Repeated Draw Does Not Overwrite Winners
+    // TEST 10: Idempotent Draw Replay
     // =========================================================================
-    console.log('\n[SECTION 5] Testing Draw Idempotency...');
+    console.log('\n[SECTION 6] Testing Draw Idempotency...');
     const repeatDraw = await request(`/api/admin/giveaways/${TEST_CAMPAIGN_ENDED}/draw-winners`, {
       method: 'POST',
       headers: { Authorization: `Bearer ${adminToken}` },
@@ -399,9 +431,9 @@ async function runPhase3Suite() {
     );
 
     // =========================================================================
-    // TEST 10: Non-Winner Cannot Submit Claim (HTTP 403)
+    // TEST 11: Non-Winner Cannot Submit Claim (HTTP 403)
     // =========================================================================
-    console.log('\n[SECTION 6] Testing Prize Claims Authorization...');
+    console.log('\n[SECTION 7] Testing Prize Claims Authorization...');
     const unauthorizedClaim = await request(`/api/giveaways/${TEST_CAMPAIGN_ENDED}/claim`, {
       method: 'POST',
       headers: { Authorization: `Bearer ${adminToken}` }, // Admin did not win
@@ -423,11 +455,13 @@ async function runPhase3Suite() {
     );
 
     // =========================================================================
-    // TEST 11: Selected Winner Submits Physical Claim
+    // TEST 12 & 13: Selected Winner Submits Physical & Digital Claims
+    // Transition: Winner SELECTED -> CLAIM_SUBMITTED, Claim -> SUBMITTED
     // =========================================================================
+    console.log('\n[SECTION 8] Testing Complete Winner & Claim State Machine...');
     const phoneWinnerMasked = phoneResult.winners[0]?.maskedUserId;
-    // Determine which token won phone (Alice or Bob)
     const phoneWinnerToken = phoneWinnerMasked === 'VE****11' ? aliceToken : bobToken;
+    const phoneWinnerId = phoneWinnerMasked === 'VE****11' ? TEST_USER_ALICE : TEST_USER_BOB;
 
     const validPhysicalClaim = await request(`/api/giveaways/${TEST_CAMPAIGN_ENDED}/claim`, {
       method: 'POST',
@@ -445,14 +479,20 @@ async function runPhase3Suite() {
 
     assert(
       validPhysicalClaim.status === 200 && validPhysicalClaim.data?.success === true,
-      'Winner successfully submits physical shipping details claim'
+      'Winner successfully submits physical shipping details claim (Claim status: SUBMITTED)'
     );
     const createdClaimId = validPhysicalClaim.data?.claim?.claimId;
 
-    // =========================================================================
-    // TEST 12: Winner Submits Digital Voucher Claim
-    // =========================================================================
-    const cardWinnerToken = bobToken; // Bob is only participant for card
+    if (isMongo) {
+      const winnerDoc = await GiveawayWinner.findOne({
+        giveawayId: TEST_CAMPAIGN_ENDED,
+        prizeId: TEST_PRIZE_PHONE,
+        userId: phoneWinnerId,
+      });
+      assert(winnerDoc.status === 'CLAIM_SUBMITTED', 'Winner status transitioned: SELECTED -> CLAIM_SUBMITTED');
+    }
+
+    const cardWinnerToken = bobToken;
     const validDigitalClaim = await request(`/api/giveaways/${TEST_CAMPAIGN_ENDED}/claim`, {
       method: 'POST',
       headers: { Authorization: `Bearer ${cardWinnerToken}` },
@@ -468,9 +508,8 @@ async function runPhase3Suite() {
     );
 
     // =========================================================================
-    // TEST 13: Duplicate Claim Submission Returns Idempotent Status
+    // TEST 14: Duplicate Claim Returns Existing Record Idempotently
     // =========================================================================
-    console.log('\n[SECTION 7] Testing Claim Idempotency & Transitions...');
     const duplicateClaim = await request(`/api/giveaways/${TEST_CAMPAIGN_ENDED}/claim`, {
       method: 'POST',
       headers: { Authorization: `Bearer ${phoneWinnerToken}` },
@@ -486,54 +525,62 @@ async function runPhase3Suite() {
     });
     assert(
       duplicateClaim.status === 200 && duplicateClaim.data?.alreadySubmitted === true,
-      'Duplicate claim returns existing record idempotently without creating duplicates'
+      'Duplicate claim returns existing record idempotently without creating duplicate documents'
     );
 
     // =========================================================================
-    // TEST 15 & 19: Public Winner API Exposes Only Masked Identity (No PII)
+    // TEST 15, 16, 17: Admin Claim Processing Transitions (SUBMITTED -> PROCESSING -> COMPLETED)
+    // Winner Transitions: CLAIM_SUBMITTED -> VERIFIED -> DELIVERED
     // =========================================================================
-    console.log('\n[SECTION 8] Testing Public Winner API PII Protection...');
-    const publicWinners = await request(`/api/giveaways/${TEST_CAMPAIGN_ENDED}/winners`);
-    assert(publicWinners.status === 200, 'Public winners endpoint returns HTTP 200');
-    const exposedWinners = publicWinners.data?.winners || [];
-    const hasRawUserId = exposedWinners.some((w) => w.userId && !w.userId.startsWith('win-'));
-    const hasRawEmail = exposedWinners.some((w) => w.email || w.phoneNumber || w.addressLine);
-    assert(
-      !hasRawUserId && !hasRawEmail && exposedWinners.every((w) => w.maskedUserId && w.maskedUserId.includes('****')),
-      'Public winner API exposes ONLY masked identity (VE****XX) and zero unmasked PII'
-    );
-
-    // =========================================================================
-    // TEST 17 & 18: Admin Processes Claim Valid & Invalid Transitions
-    // =========================================================================
-    console.log('\n[SECTION 9] Testing Admin Claim Processing Transitions...');
-    // Valid: SUBMITTED -> PROCESSING
+    console.log('\n[SECTION 9] Testing Admin Fulfillment Transitions & Audit Trails...');
+    // SUBMITTED -> PROCESSING (Winner: CLAIM_SUBMITTED -> VERIFIED)
     const toProcessing = await request(`/api/admin/claims/${createdClaimId}/process`, {
       method: 'POST',
       headers: { Authorization: `Bearer ${adminToken}` },
-      body: { status: 'PROCESSING', notes: 'Address verified with courier partner.' },
+      body: { status: 'PROCESSING', notes: 'Address verified with logistics team.' },
     });
-    assert(toProcessing.status === 200 && toProcessing.data?.claim?.status === 'PROCESSING', 'Admin transitions claim to PROCESSING');
+    assert(
+      toProcessing.status === 200 && toProcessing.data?.claim?.status === 'PROCESSING',
+      'Admin transitions claim: SUBMITTED -> PROCESSING'
+    );
 
-    // Valid: PROCESSING -> COMPLETED with Tracking Information
+    if (isMongo) {
+      const winnerDoc = await GiveawayWinner.findOne({
+        giveawayId: TEST_CAMPAIGN_ENDED,
+        prizeId: TEST_PRIZE_PHONE,
+        userId: phoneWinnerId,
+      });
+      assert(winnerDoc.status === 'VERIFIED', 'Winner status transitioned: CLAIM_SUBMITTED -> VERIFIED');
+    }
+
+    // PROCESSING -> COMPLETED (Winner: VERIFIED -> DELIVERED)
     const toCompleted = await request(`/api/admin/claims/${createdClaimId}/process`, {
       method: 'POST',
       headers: { Authorization: `Bearer ${adminToken}` },
       body: {
         status: 'COMPLETED',
-        courierPartner: 'BlueDart Express',
+        courierPartner: 'BlueDart Express Air',
         trackingNumber: 'BLUEDART-IND-7788990',
-        notes: 'Dispatched via air courier.',
+        notes: 'Dispatched via express air courier.',
       },
     });
     assert(
       toCompleted.status === 200 &&
         toCompleted.data?.claim?.status === 'COMPLETED' &&
         toCompleted.data?.claim?.trackingInformation?.trackingNumber === 'BLUEDART-IND-7788990',
-      'Admin completes claim and attaches courier tracking information'
+      'Admin completes claim: PROCESSING -> COMPLETED with courier tracking information'
     );
 
-    // Invalid: COMPLETED -> SUBMITTED (Backward transition rejected)
+    if (isMongo) {
+      const winnerDoc = await GiveawayWinner.findOne({
+        giveawayId: TEST_CAMPAIGN_ENDED,
+        prizeId: TEST_PRIZE_PHONE,
+        userId: phoneWinnerId,
+      });
+      assert(winnerDoc.status === 'DELIVERED', 'Winner status transitioned: VERIFIED -> DELIVERED');
+    }
+
+    // Reject Invalid Backward Transition (COMPLETED -> SUBMITTED)
     const invalidBackward = await request(`/api/admin/claims/${createdClaimId}/process`, {
       method: 'POST',
       headers: { Authorization: `Bearer ${adminToken}` },
@@ -545,9 +592,34 @@ async function runPhase3Suite() {
     );
 
     // =========================================================================
-    // TEST 14: Expired Claim Window Rejection
+    // TEST 18: Claim Privacy & PII Protection
     // =========================================================================
-    console.log('\n[SECTION 10] Testing Expired Claim Window Defense...');
+    console.log('\n[SECTION 10] Testing Claim Privacy & Public API PII Defenses...');
+    const publicWinners = await request(`/api/giveaways/${TEST_CAMPAIGN_ENDED}/winners`);
+    assert(publicWinners.status === 200, 'Public winners endpoint returns HTTP 200');
+    const exposedWinners = publicWinners.data?.winners || [];
+    const hasRawUserId = exposedWinners.some((w) => w.userId && !w.userId.startsWith('win-'));
+    const hasRawPII = exposedWinners.some(
+      (w) => w.email || w.phoneNumber || w.addressLine || w.trackingNumber || w.voucherCode
+    );
+    assert(
+      !hasRawUserId && !hasRawPII && exposedWinners.every((w) => w.maskedUserId && w.maskedUserId.includes('****')),
+      'Public winner API exposes ONLY masked identity (VE****XX) and zero unmasked PII, tracking numbers, or voucher codes'
+    );
+
+    if (isMongo) {
+      const auditLogs = await AuditLog.find({ giveawayId: TEST_CAMPAIGN_ENDED });
+      const logsHavePII = auditLogs.some((l) => {
+        const str = JSON.stringify(l.metadata || {});
+        return str.includes('BLUEDART-IND') || str.includes('Flat 402') || str.includes('9876543210');
+      });
+      assert(!logsHavePII, 'Audit logs contain identifiers and status changes ONLY, with ZERO sensitive PII stored');
+    }
+
+    // =========================================================================
+    // TEST 19: Expired Claim Window Defense & Persisted Status
+    // =========================================================================
+    console.log('\n[SECTION 11] Testing Persisted Expired Winner Defense...');
     if (isMongo) {
       // Force winner record claimDeadline to the past
       await GiveawayWinner.findOneAndUpdate(
@@ -567,10 +639,30 @@ async function runPhase3Suite() {
         expiredClaim.status === 400 && expiredClaim.data?.code === 'CLAIM_DEADLINE_EXPIRED',
         'Late claim submission rejected with HTTP 400 (CLAIM_DEADLINE_EXPIRED)'
       );
-    } else {
-      passedCount++;
-      console.log('  ✅ [PASSED] Late claim submission rejected with HTTP 400 (CLAIM_DEADLINE_EXPIRED)');
+
+      const expiredWinnerDoc = await GiveawayWinner.findOne({
+        giveawayId: TEST_CAMPAIGN_ENDED,
+        prizeId: TEST_PRIZE_CARD,
+      });
+      assert(expiredWinnerDoc.status === 'EXPIRED', 'Winner status is authoritatively persisted in DB as EXPIRED');
+
+      const expAudit = await AuditLog.findOne({ giveawayId: TEST_CAMPAIGN_ENDED, action: 'CLAIM_EXPIRED' });
+      assert(!!expAudit, 'Audit log entry created for CLAIM_EXPIRED');
     }
+
+    // =========================================================================
+    // TEST 20: Focused Regression Test for Referral Code Lookup via UserId
+    // =========================================================================
+    console.log('\n[SECTION 12] Testing Referral Code Lookup via UserId...');
+    const applyRefRes = await request('/api/referrals/apply', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${bobToken}` },
+      body: { code: 'VELOOP-USER-P3-ALICE' }, // Referral code formatted with userId
+    });
+    assert(
+      applyRefRes.status === 200 && applyRefRes.data?.success === true,
+      'Referral code with standard format VELOOP-<userId> successfully resolves referrer and applies bonus'
+    );
 
     console.log('\n====================================================');
     console.log(`🎉 PHASE 3 SUITE FINISHED: ${passedCount} PASSED, ${failedCount} FAILED`);
@@ -579,12 +671,12 @@ async function runPhase3Suite() {
     // Clean up test data
     if (isMongo) {
       await User.deleteMany({ userId: { $in: [TEST_ADMIN_ID, TEST_USER_ALICE, TEST_USER_BOB, TEST_USER_CHARLIE] } });
-      await Giveaway.deleteMany({ giveawayId: { $in: [TEST_CAMPAIGN_ACTIVE, TEST_CAMPAIGN_ENDED] } });
-      await Prize.deleteMany({ prizeId: { $in: [TEST_PRIZE_PHONE, TEST_PRIZE_CARD, TEST_PRIZE_PENDING, TEST_PRIZE_SOLO] } });
-      await GiveawayParticipation.deleteMany({ giveawayId: { $in: [TEST_CAMPAIGN_ACTIVE, TEST_CAMPAIGN_ENDED] } });
-      await GiveawayWinner.deleteMany({ giveawayId: { $in: [TEST_CAMPAIGN_ACTIVE, TEST_CAMPAIGN_ENDED] } });
-      await PrizeClaim.deleteMany({ giveawayId: { $in: [TEST_CAMPAIGN_ACTIVE, TEST_CAMPAIGN_ENDED] } });
-      await AuditLog.deleteMany({ giveawayId: { $in: [TEST_CAMPAIGN_ACTIVE, TEST_CAMPAIGN_ENDED] } });
+      await Giveaway.deleteMany({ giveawayId: { $in: [TEST_CAMPAIGN_ACTIVE, TEST_CAMPAIGN_ENDED, TEST_CAMPAIGN_INSUFFICIENT] } });
+      await Prize.deleteMany({ prizeId: { $in: [TEST_PRIZE_PHONE, TEST_PRIZE_CARD, TEST_PRIZE_PENDING, TEST_PRIZE_INSUFFICIENT] } });
+      await GiveawayParticipation.deleteMany({ giveawayId: { $in: [TEST_CAMPAIGN_ACTIVE, TEST_CAMPAIGN_ENDED, TEST_CAMPAIGN_INSUFFICIENT] } });
+      await GiveawayWinner.deleteMany({ giveawayId: { $in: [TEST_CAMPAIGN_ACTIVE, TEST_CAMPAIGN_ENDED, TEST_CAMPAIGN_INSUFFICIENT] } });
+      await PrizeClaim.deleteMany({ giveawayId: { $in: [TEST_CAMPAIGN_ACTIVE, TEST_CAMPAIGN_ENDED, TEST_CAMPAIGN_INSUFFICIENT] } });
+      await AuditLog.deleteMany({ giveawayId: { $in: [TEST_CAMPAIGN_ACTIVE, TEST_CAMPAIGN_ENDED, TEST_CAMPAIGN_INSUFFICIENT] } });
     }
 
     if (server) {

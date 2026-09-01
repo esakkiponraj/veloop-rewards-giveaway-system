@@ -205,10 +205,11 @@ export const triggerWinnerDraw = async (req, res, next) => {
     if (error.code === 'INSUFFICIENT_ELIGIBLE_PARTICIPANTS') {
       return res.status(409).json({
         success: false,
-        code: error.code,
+        code: 'INSUFFICIENT_ELIGIBLE_PARTICIPANTS',
         message: error.message,
-        required: error.required,
-        available: error.available,
+        prizeId: error.prizeId,
+        requiredCount: error.requiredCount || error.required,
+        availableCount: error.availableCount || error.available,
       });
     }
     if (error.code === 'GIVEAWAY_NOT_ENDED') {
