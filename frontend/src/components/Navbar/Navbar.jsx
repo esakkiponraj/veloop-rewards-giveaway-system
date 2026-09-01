@@ -11,6 +11,16 @@ export const Navbar = () => {
 
   const isActive = (path) => location.pathname === path;
 
+  const handleSwitch = async (acc) => {
+    try {
+      const password = acc.email === 'admin@veloop.io' ? 'admin123' : 'password123';
+      await switchAccount(acc.email, password);
+      setProfileOpen(false);
+    } catch (err) {
+      console.error('Navbar switch failed:', err);
+    }
+  };
+
   return (
     <header className={styles.header}>
       <div className={`veloop-container ${styles.navContainer}`}>
@@ -25,7 +35,7 @@ export const Navbar = () => {
             to="/"
             className={`${styles.navItem} ${isActive('/') || isActive('/giveaways') ? styles.active : ''}`}
           >
-            <Gift size={16} />
+            <Gift size={16} aria-hidden="true" />
             <span>Giveaways</span>
           </Link>
 
@@ -34,7 +44,7 @@ export const Navbar = () => {
               to="/my-entries"
               className={`${styles.navItem} ${isActive('/my-entries') ? styles.active : ''}`}
             >
-              <Trophy size={16} />
+              <Trophy size={16} aria-hidden="true" />
               <span>My Entries</span>
             </Link>
           )}
@@ -43,7 +53,7 @@ export const Navbar = () => {
             to="/admin"
             className={`${styles.navItem} ${isActive('/admin') ? styles.active : ''}`}
           >
-            <LayoutDashboard size={16} />
+            <LayoutDashboard size={16} aria-hidden="true" />
             <span>Admin Ops</span>
           </Link>
         </nav>
@@ -63,7 +73,7 @@ export const Navbar = () => {
                   <span className={styles.currencyVal}>{user.wallet?.SVEs?.toLocaleString() ?? 0}</span>
                 </div>
                 <div className={`${styles.balanceChip} ${styles.tokenChip}`} title="Platform Activity Tokens">
-                  <Coins size={12} className={styles.tokenIcon} />
+                  <Coins size={12} className={styles.tokenIcon} aria-hidden="true" />
                   <span className={styles.currencyVal}>{user.wallet?.Tokens?.toLocaleString() ?? 0}</span>
                 </div>
               </div>
@@ -83,7 +93,7 @@ export const Navbar = () => {
                     <span className={styles.userName}>{user.username}</span>
                     <span className={styles.userMaskedId}>{user.maskedId}</span>
                   </div>
-                  <ChevronDown size={14} className={profileOpen ? styles.chevronOpen : styles.chevron} />
+                  <ChevronDown size={14} className={profileOpen ? styles.chevronOpen : styles.chevron} aria-hidden="true" />
                 </button>
 
                 {profileOpen && (
@@ -99,23 +109,22 @@ export const Navbar = () => {
                     {/* Fast Demo Account Switcher for Reviewers */}
                     <div className={styles.switchSection}>
                       <p className={styles.sectionLabel}>
-                        <Sparkles size={12} /> Switch Test Profile
+                        <Sparkles size={12} aria-hidden="true" /> Switch Test Profile
                       </p>
                       {demoAccounts.map((acc) => (
                         <button
                           key={acc.userId}
                           className={`${styles.switchBtn} ${user.userId === acc.userId ? styles.switchBtnActive : ''}`}
-                          onClick={() => {
-                            switchAccount(acc.email);
-                            setProfileOpen(false);
-                          }}
+                          onClick={() => handleSwitch(acc)}
+                          type="button"
                         >
                           <div className={styles.switchBtnRow}>
                             <span className={styles.switchName}>{acc.username}</span>
                             <span className={styles.switchVe}>{acc.wallet?.VEs} VEs</span>
                           </div>
                           <span className={styles.switchNote}>
-                            {acc.userId === 'VE10842' && 'Standard User (Ample balance)'}
+                            {acc.userId === 'VE10099' && 'Fresh QA User (0 entries · Test Join Modal)'}
+                            {acc.userId === 'VE10842' && 'Standard User (850 VEs)'}
                             {acc.userId === 'VE10012' && 'Low Balance (120 VEs)'}
                             {acc.userId === 'VE10025' && 'Winner Account (Apple Watch)'}
                             {acc.userId === 'VE00001' && 'Administrator'}
@@ -132,8 +141,9 @@ export const Navbar = () => {
                         logout();
                         setProfileOpen(false);
                       }}
+                      type="button"
                     >
-                      <LogOut size={14} />
+                      <LogOut size={14} aria-hidden="true" />
                       <span>Log Out</span>
                     </button>
                   </div>
@@ -142,7 +152,7 @@ export const Navbar = () => {
             </>
           ) : (
             <Link to="/login" className="btn-veloop-primary">
-              <User size={16} />
+              <User size={16} aria-hidden="true" />
               <span>Log In</span>
             </Link>
           )}

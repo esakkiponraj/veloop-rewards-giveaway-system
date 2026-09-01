@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { User, Lock, ArrowRight, ShieldCheck, Sparkles, AlertCircle, Loader2 } from 'lucide-react';
+import { User, Lock, ArrowRight, ShieldCheck, Sparkles, AlertCircle, Loader2, CheckCircle2 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext.jsx';
 import styles from './Login.module.css';
 
@@ -63,11 +63,12 @@ export const Login = () => {
     }
   };
 
-  const handleQuickLogin = async (email) => {
+  const handleQuickLogin = async (email, defaultPassword = null) => {
     setLoading(true);
     setErrorMsg('');
     try {
-      await login(email, 'password123');
+      const pwd = defaultPassword || (email === 'admin@veloop.io' ? 'admin123' : 'password123');
+      await login(email, pwd);
       navigate(safeReturnUrl);
     } catch (err) {
       setErrorMsg(err.message || 'Quick login failed.');
@@ -89,7 +90,7 @@ export const Login = () => {
             </p>
           </div>
 
-          {/* 1-Click Test User Switcher for Reviewers */}
+          {/* 1-Click Test User Switcher for Reviewers (Development / Evaluation Mode) */}
           <div className={styles.reviewerSection}>
             <div className={styles.reviewerBadge}>
               <Sparkles size={14} aria-hidden="true" />
@@ -97,6 +98,19 @@ export const Login = () => {
             </div>
 
             <div className={styles.demoButtonsGrid}>
+              <button
+                type="button"
+                className={styles.demoBtnGold}
+                onClick={() => handleQuickLogin('modal.tester@example.com')}
+                disabled={loading}
+              >
+                <div className={styles.demoBtnCol}>
+                  <strong>Modal Tester (Fresh QA User)</strong>
+                  <span>1,000 VEs · 0 Entries (Test Join Confirmation Modal)</span>
+                </div>
+                <ArrowRight size={14} className={styles.demoArrow} aria-hidden="true" />
+              </button>
+
               <button
                 type="button"
                 className={styles.demoBtn}
@@ -125,7 +139,7 @@ export const Login = () => {
 
               <button
                 type="button"
-                className={styles.demoBtnGold}
+                className={styles.demoBtn}
                 onClick={() => handleQuickLogin('rohan.winner@example.com')}
                 disabled={loading}
               >
@@ -172,7 +186,7 @@ export const Login = () => {
                   type="text"
                   value={emailOrUsername}
                   onChange={(e) => setEmailOrUsername(e.target.value)}
-                  placeholder="e.g. alex.vance@example.com"
+                  placeholder="e.g. modal.tester@example.com"
                   className={styles.input}
                   required
                 />
