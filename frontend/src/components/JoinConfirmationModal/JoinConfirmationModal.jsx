@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, ShieldCheck, AlertCircle, ArrowRight, Loader2 } from 'lucide-react';
 import styles from './JoinConfirmationModal.module.css';
@@ -13,13 +13,54 @@ export const JoinConfirmationModal = ({
   errorMessage = null,
 }) => {
   const [agreedToTerms, setAgreedToTerms] = useState(true);
+  const modalRef = useRef(null);
+  const triggerElementRef = useRef(null);
 
+  // Store trigger element to restore focus when closed
   useEffect(() => {
+    if (isOpen) {
+      triggerElementRef.current = document.activeElement;
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+      if (triggerElementRef.current && typeof triggerElementRef.current.focus === 'function') {
+        triggerElementRef.current.focus();
+      }
+    }
+    return () => {
+      document.body.style.overflow = '';
+    };
+  }, [isOpen]);
+
+  // Focus trap & Escape key handler
+  useEffect(() => {
+    if (!isOpen) return;
+
     const handleKeyDown = (e) => {
-      if (e.key === 'Escape' && isOpen && !loading) {
+      if (e.key === 'Escape' && !loading) {
         onClose();
+        return;
+      }
+
+      if (e.key === 'Tab' && modalRef.current) {
+        const focusable = modalRef.current.querySelectorAll(
+          'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+        );
+        if (focusable.length === 0) return;
+
+        const first = focusable[0];
+        const last = focusable[focusable.length - 1];
+
+        if (e.shiftKey && document.activeElement === first) {
+          e.preventDefault();
+          last.focus();
+        } else if (!e.shiftKey && document.activeElement === last) {
+          e.preventDefault();
+          first.focus();
+        }
       }
     };
+
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [isOpen, loading, onClose]);
@@ -36,6 +77,7 @@ export const JoinConfirmationModal = ({
     <AnimatePresence>
       <div className={styles.modalBackdrop} onClick={loading ? undefined : onClose}>
         <motion.div
+          ref={modalRef}
           className={styles.modalCard}
           onClick={(e) => e.stopPropagation()}
           initial={{ opacity: 0, scale: 0.95, y: 15 }}
@@ -45,30 +87,31 @@ export const JoinConfirmationModal = ({
           role="dialog"
           aria-modal="true"
           aria-labelledby="modal-title"
+          aria-describedby="modal-desc"
         >
           {/* Close Button */}
-          <button className={styles.closeBtn} onClick={onClose} disabled={loading} aria-label="Close modal">
-            <X size={18} />
+          <button className={styles.closeBtn} onClick={onClose} disabled={loading} aria-label="Close confirmation modal">
+            <X size={18} aria-hidden="true" />
           </button>
 
           {/* Modal Header */}
           <div className={styles.modalHeader}>
             <div className={styles.headerBadge}>
-              <ShieldCheck size={14} />
+              <ShieldCheck size={14} aria-hidden="true" />
               <span>CONFIRM PARTICIPATION</span>
             </div>
             <h3 className={styles.modalTitle} id="modal-title">
               {prize.name}
             </h3>
-            <p className={styles.modalSubtitle}>
+            <p className={styles.modalSubtitle} id="modal-desc">
               Please review the currency deduction details before confirming your entry.
             </p>
           </div>
 
           {/* Error Message Display if API rejected */}
           {errorMessage && (
-            <div className={styles.insufficientAlert} style={{ borderColor: 'rgba(239, 68, 68, 0.4)' }}>
-              <AlertCircle size={18} className={styles.alertIcon} />
+            <div className={styles.insufficientAlert} style={{ borderColor: 'rgba(239, 68, 68, 0.4)' }} role="alert">
+              <AlertCircle size={18} className={styles.alertIcon} aria-hidden="true" />
               <p className={styles.alertText}>{errorMessage}</p>
             </div>
           )}
@@ -102,8 +145,8 @@ export const JoinConfirmationModal = ({
 
           {/* Insufficient Balance Notice */}
           {!hasSufficientBalance && (
-            <div className={styles.insufficientAlert}>
-              <AlertCircle size={18} className={styles.alertIcon} />
+            <div className={styles.insufficientAlert} role="alert">
+              <AlertCircle size={18} className={styles.alertIcon} aria-hidden="true" />
               <p className={styles.alertText}>
                 You need {(entryFee - currentBalance).toLocaleString()} more {currency} to join this giveaway.
               </p>
@@ -118,6 +161,7 @@ export const JoinConfirmationModal = ({
               onChange={(e) => setAgreedToTerms(e.target.checked)}
               className={styles.checkboxInput}
               disabled={loading}
+              aria-label="Acknowledge giveaway rules and terms"
             />
             <span className={styles.checkboxText}>
               I confirm that I have reviewed the official giveaway rules, eligibility criteria, and participation terms.
@@ -126,7 +170,7 @@ export const JoinConfirmationModal = ({
 
           {/* Action Buttons */}
           <div className={styles.actionRow}>
-            <button className="btn-veloop-secondary" onClick={onClose} disabled={loading}>
+            <button className="btn-veloop-secondary" onClick={onClose} disabled={loading} type="button">
               Cancel
             </button>
             <button
@@ -134,16 +178,17 @@ export const JoinConfirmationModal = ({
               onClick={onConfirmJoin}
               disabled={!hasSufficientBalance || !agreedToTerms || loading}
               id="confirm-join-modal-btn"
+              type="button"
             >
               {loading ? (
                 <>
-                  <Loader2 size={16} className={styles.spinner} />
+                  <Loader2 size={16} className={styles.spinner} aria-hidden="true" />
                   <span>Joining Giveaway...</span>
                 </>
               ) : (
                 <>
                   <span>Confirm & Join</span>
-                  <ArrowRight size={16} />
+                  <ArrowRight size={16} aria-hidden="true" />
                 </>
               )}
             </button>

@@ -1,11 +1,19 @@
 import http from 'http';
 import dotenv from 'dotenv';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+// Load .env from backend folder or root
+dotenv.config({ path: path.resolve(__dirname, '.env') });
+dotenv.config({ path: path.resolve(process.cwd(), '.env') });
+
 import app from './src/app.js';
 import connectDB from './src/config/db.js';
 import { seedDatabase } from './src/utils/seedData.js';
 import Giveaway from './src/models/Giveaway.js';
-
-dotenv.config();
 
 const PORT = process.env.PORT || 5000;
 

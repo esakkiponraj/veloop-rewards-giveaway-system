@@ -5,7 +5,6 @@ import {
   ShieldCheck,
   Trophy,
   Users,
-  Coins,
   CheckCircle2,
   AlertCircle,
   Sparkles,
@@ -14,7 +13,6 @@ import {
   ChevronDown,
   ArrowRight,
   RefreshCw,
-  Clock,
 } from 'lucide-react';
 import { getPrizeBySlug, getMyGiveawayStatus, joinGiveaway } from '../../services/giveawayApi.js';
 import { useAuth } from '../../context/AuthContext.jsx';
@@ -24,11 +22,26 @@ import { JoinConfirmationModal } from '../../components/JoinConfirmationModal/Jo
 import { SuccessfulParticipationModal } from '../../components/SuccessfulParticipationModal/SuccessfulParticipationModal.jsx';
 import styles from './GiveawayDetails.module.css';
 
+/**
+ * Generate a cryptographically secure unique idempotency key using standard Web Crypto API
+ */
+const generateSecureIdempotencyKey = () => {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return `IDEMP-${crypto.randomUUID()}`;
+  }
+  if (typeof crypto !== 'undefined' && typeof crypto.getRandomValues === 'function') {
+    const arr = new Uint8Array(16);
+    crypto.getRandomValues(arr);
+    return `IDEMP-${Array.from(arr, (b) => b.toString(16).padStart(2, '0')).join('')}`;
+  }
+  return `IDEMP-${Date.now()}-SECURE`;
+};
+
 export const GiveawayDetails = () => {
   const { slug } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
-  const { user, updateWallet } = useAuth();
+  const { user, updateWallet, refreshUser } = useAuth();
 
   const [prizeData, setPrizeData] = useState(null);
   const [giveawayData, setGiveawayData] = useState(null);
@@ -43,7 +56,7 @@ export const GiveawayDetails = () => {
   const [successModalOpen, setSuccessModalOpen] = useState(false);
   const [successDetails, setSuccessDetails] = useState(null);
 
-  // Idempotency Key for current intentional join attempt
+  // Single Idempotency Key for current intentional join attempt
   const currentIdempotencyKeyRef = useRef(null);
 
   // Expandable sections
@@ -82,15 +95,18 @@ export const GiveawayDetails = () => {
   }, [slug, user]);
 
   const handleOpenJoinModal = () => {
-    // Generate one unique idempotency key for this intentional join attempt
-    if (!currentIdempotencyKeyRef.current) {
-      currentIdempotencyKeyRef.current = `IDEMP-${user?.userId || 'GUEST'}-${Date.now()}-${Math.random()
-        .toString(36)
-        .substring(2, 7)
-        .toUpperCase()}`;
-    }
+    // Generate one cryptographically secure idempotency key for this intentional attempt
+    currentIdempotencyKeyRef.current = generateSecureIdempotencyKey();
     setJoinError(null);
     setConfirmModalOpen(true);
+  };
+
+  const handleCloseJoinModal = () => {
+    if (joinLoading) return;
+    // Cancelled modal clears key so next intentional attempt receives a fresh key
+    currentIdempotencyKeyRef.current = null;
+    setConfirmModalOpen(false);
+    setJoinError(null);
   };
 
   const handleConfirmJoin = async () => {
@@ -98,19 +114,22 @@ export const GiveawayDetails = () => {
     setJoinLoading(true);
     setJoinError(null);
 
-    // Reuse identical idempotency key for retries and rapid repeated clicks of this attempt
-    const idempotencyKey = currentIdempotencyKeyRef.current;
+    // Reuse the same idempotency key for retries / rapid clicks belonging to this attempt
+    const idempotencyKey = currentIdempotencyKeyRef.current || generateSecureIdempotencyKey();
 
     try {
       const res = await joinGiveaway(giveawayData.giveawayId, prizeData.prizeId, idempotencyKey);
 
       if (res.success) {
-        // Clear idempotency key on completed outcome
+        // Clear temporary idempotency key on successful completion
         currentIdempotencyKeyRef.current = null;
 
-        // Update user wallet balance instantly in auth context
+        // Authoritative wallet refresh: update from backend payload and refresh user auth profile
         if (res.wallet) {
           updateWallet(res.wallet);
+        }
+        if (typeof refreshUser === 'function') {
+          refreshUser();
         }
 
         setSuccessDetails({
@@ -124,16 +143,28 @@ export const GiveawayDetails = () => {
         setConfirmModalOpen(false);
         setSuccessModalOpen(true);
 
-        // Refresh local status
-        setUserStatus({
-          success: true,
-          isParticipating: true,
-          participation: res.participation,
-        });
+        // Fetch fresh authoritative status from backend
+        try {
+          const freshStatus = await getMyGiveawayStatus(giveawayData.giveawayId, prizeData.prizeId);
+          if (freshStatus.success) {
+            setUserStatus(freshStatus);
+          } else {
+            setUserStatus({
+              success: true,
+              isParticipating: true,
+              participation: res.participation,
+            });
+          }
+        } catch (e) {
+          setUserStatus({
+            success: true,
+            isParticipating: true,
+            participation: res.participation,
+          });
+        }
       }
     } catch (err) {
       console.error('Join giveaway error:', err);
-      // Map error codes to friendly messages
       let friendlyMsg = err.message || 'Failed to complete participation.';
       if (err.code === 'INSUFFICIENT_VE_BALANCE') {
         friendlyMsg = 'Your VEs balance is insufficient to join this prize.';
@@ -141,6 +172,8 @@ export const GiveawayDetails = () => {
         friendlyMsg = 'Your SVEs balance is insufficient to join this prize.';
       } else if (err.code === 'INSUFFICIENT_TOKEN_BALANCE') {
         friendlyMsg = 'Your Tokens balance is insufficient to join this prize.';
+      } else if (err.code === 'PRIZE_PENDING_CONFIRMATION') {
+        friendlyMsg = 'Participation for this prize is temporarily disabled pending merchant confirmation.';
       } else if (err.code === 'IDEMPOTENCY_KEY_REUSED') {
         friendlyMsg = 'This join transaction was already submitted with a different prize configuration.';
       } else if (err.code === 'GIVEAWAY_ENDED') {
@@ -166,16 +199,16 @@ export const GiveawayDetails = () => {
     return (
       <div className={`veloop-container ${styles.errorWrapper}`}>
         <div className={styles.errorCard}>
-          <AlertCircle size={40} className={styles.errorIcon} />
+          <AlertCircle size={40} className={styles.errorIcon} aria-hidden="true" />
           <h3>Giveaway Not Found</h3>
           <p>{error || 'The requested giveaway or prize does not exist.'}</p>
           <div style={{ display: 'flex', gap: '12px', marginTop: '16px' }}>
-            <button className="btn-veloop-secondary" onClick={fetchPrizeDetails}>
-              <RefreshCw size={16} />
+            <button className="btn-veloop-secondary" onClick={fetchPrizeDetails} type="button">
+              <RefreshCw size={16} aria-hidden="true" />
               <span>Retry</span>
             </button>
             <Link to="/" className="btn-veloop-primary">
-              <ArrowLeft size={16} />
+              <ArrowLeft size={16} aria-hidden="true" />
               <span>Back to Giveaways</span>
             </Link>
           </div>
@@ -198,7 +231,7 @@ export const GiveawayDetails = () => {
       <div className={styles.topBar}>
         <div className={`veloop-container ${styles.topBarContainer}`}>
           <Link to="/" className={styles.backBtn} id="back-to-home-link">
-            <ArrowLeft size={16} />
+            <ArrowLeft size={16} aria-hidden="true" />
             <span className={styles.desktopBackText}>Giveaway Home</span>
             <span className={styles.mobileBackText}>Giveaway</span>
           </Link>
@@ -221,7 +254,7 @@ export const GiveawayDetails = () => {
                 className={styles.ambientGlow}
                 style={{
                   background: prizeData.accentColor
-                    ? `radial-gradient(circle, ${prizeData.accentColor}45 0%, transparent 70%)`
+                    ? `radial-gradient(circle, ${prizeData.accentColor}35 0%, transparent 70%)`
                     : undefined,
                 }}
               />
@@ -232,15 +265,15 @@ export const GiveawayDetails = () => {
             {/* Quick Specs Pill Badges */}
             <div className={styles.specsRow}>
               <div className={styles.specPill}>
-                <Trophy size={14} className={styles.pillGold} />
+                <Trophy size={14} className={styles.pillGold} aria-hidden="true" />
                 <span>{prizeData.winnerCount} {prizeData.winnerCount === 1 ? 'Winner' : 'Winners'}</span>
               </div>
               <div className={styles.specPill}>
-                <Users size={14} className={styles.pillCyan} />
+                <Users size={14} className={styles.pillCyan} aria-hidden="true" />
                 <span>2.4K+ Participants</span>
               </div>
               <div className={styles.specPill}>
-                <ShieldCheck size={14} className={styles.pillGreen} />
+                <ShieldCheck size={14} className={styles.pillGreen} aria-hidden="true" />
                 <span>Verified Fulfillment</span>
               </div>
             </div>
@@ -249,7 +282,7 @@ export const GiveawayDetails = () => {
           {/* Right Column: Information & Balance Verification */}
           <div className={styles.infoCol}>
             <div className={styles.exclusiveBadge}>
-              <Sparkles size={14} />
+              <Sparkles size={14} aria-hidden="true" />
               <span>EXCLUSIVE VELOOP GIVEAWAY</span>
             </div>
 
@@ -258,8 +291,8 @@ export const GiveawayDetails = () => {
 
             {/* Pending Confirmation Warning Banner */}
             {isPending && (
-              <div className={styles.pendingAlertBox}>
-                <AlertCircle size={18} className={styles.pendingAlertIcon} />
+              <div className={styles.pendingAlertBox} role="alert">
+                <AlertCircle size={18} className={styles.pendingAlertIcon} aria-hidden="true" />
                 <div>
                   <strong>Pending Final Merchant Confirmation</strong>
                   <p>
@@ -270,7 +303,7 @@ export const GiveawayDetails = () => {
               </div>
             )}
 
-            {/* Countdown Box */}
+            {/* Countdown Box (Display Only: Refetches backend on expiry) */}
             {giveawayData?.endAt && isGiveawayActive && (
               <div className={styles.countdownCard}>
                 <span className={styles.cdLabel}>GIVEAWAY ENDS IN</span>
@@ -305,30 +338,31 @@ export const GiveawayDetails = () => {
 
               {/* Status Outcome */}
               {!user ? (
-                /* Visitor State: Redirect to login while preserving returnUrl */
+                /* Visitor State: Safe internal returnUrl */
                 <div className={styles.visitorState}>
                   <p className={styles.stateNotice}>Please log in to your VELOOP Rewards account to participate.</p>
                   <button
                     className="btn-veloop-primary"
                     style={{ width: '100%' }}
-                    onClick={() => navigate('/login', { state: { from: location.pathname } })}
+                    onClick={() => navigate(`/login?returnUrl=${encodeURIComponent(location.pathname)}`)}
                     id="visitor-login-btn"
+                    type="button"
                   >
                     <span>Login to Participate</span>
-                    <ArrowRight size={16} />
+                    <ArrowRight size={16} aria-hidden="true" />
                   </button>
                 </div>
               ) : isPending ? (
                 /* Pending Confirmation State */
                 <div className={styles.endedState}>
-                  <AlertCircle size={18} />
+                  <AlertCircle size={18} aria-hidden="true" />
                   <span>Participation is temporarily locked while merchant confirmation is finalized.</span>
                 </div>
               ) : isParticipating ? (
                 /* Already Joined State */
                 <div className={styles.joinedState}>
                   <div className={styles.joinedBadge}>
-                    <CheckCircle2 size={18} />
+                    <CheckCircle2 size={18} aria-hidden="true" />
                     <span>You're Already Participating ✓ ({userStatus?.participation?.entryCount || 1} Entry)</span>
                   </div>
                   <p className={styles.joinedNotice}>
@@ -336,20 +370,20 @@ export const GiveawayDetails = () => {
                   </p>
                   <Link to="/my-entries" className="btn-veloop-secondary" style={{ width: '100%' }}>
                     <span>View Participation Receipt</span>
-                    <ArrowRight size={16} />
+                    <ArrowRight size={16} aria-hidden="true" />
                   </Link>
                 </div>
               ) : !isGiveawayActive ? (
                 /* Ended / Upcoming State */
                 <div className={styles.endedState}>
-                  <AlertCircle size={18} />
+                  <AlertCircle size={18} aria-hidden="true" />
                   <span>This giveaway is currently {giveawayData?.status?.toLowerCase()}. New entries closed.</span>
                 </div>
               ) : hasSufficientBalance ? (
                 /* Sufficient Balance -> Can Join */
                 <div className={styles.eligibleState}>
                   <div className={styles.eligibleRow}>
-                    <CheckCircle2 size={16} className={styles.checkGreen} />
+                    <CheckCircle2 size={16} className={styles.checkGreen} aria-hidden="true" />
                     <span>✓ You have enough {currency} to join</span>
                   </div>
                   <button
@@ -357,16 +391,17 @@ export const GiveawayDetails = () => {
                     style={{ width: '100%', fontSize: '1rem', padding: '14px' }}
                     onClick={handleOpenJoinModal}
                     id="join-details-page-cta"
+                    type="button"
                   >
                     <span>Join for {entryFee.toLocaleString()} {currency}</span>
-                    <ArrowRight size={16} />
+                    <ArrowRight size={16} aria-hidden="true" />
                   </button>
                 </div>
               ) : (
                 /* Insufficient Balance State */
                 <div className={styles.insufficientState}>
                   <div className={styles.insufficientRow}>
-                    <AlertCircle size={16} className={styles.alertRed} />
+                    <AlertCircle size={16} className={styles.alertRed} aria-hidden="true" />
                     <span>
                       Insufficient {currency}. You need {(entryFee - userBalance).toLocaleString()} more {currency}.
                     </span>
@@ -376,6 +411,7 @@ export const GiveawayDetails = () => {
                     style={{ width: '100%', padding: '12px' }}
                     onClick={() => navigate(getEarnMoreRoute(currency))}
                     id="earn-more-currency-btn"
+                    type="button"
                   >
                     <span>Earn More {currency} →</span>
                   </button>
@@ -458,12 +494,12 @@ export const GiveawayDetails = () => {
 
         {/* Important Information Accordion */}
         <div className={styles.accordionWrap}>
-          <button className={styles.accordionToggle} onClick={() => setInfoOpen(!infoOpen)}>
+          <button className={styles.accordionToggle} onClick={() => setInfoOpen(!infoOpen)} type="button">
             <div className={styles.toggleTitle}>
-              <Info size={18} className={styles.infoIcon} />
+              <Info size={18} className={styles.infoIcon} aria-hidden="true" />
               <span>Important Information</span>
             </div>
-            <ChevronDown size={18} className={infoOpen ? styles.chevronRotated : ''} />
+            <ChevronDown size={18} className={infoOpen ? styles.chevronRotated : ''} aria-hidden="true" />
           </button>
           {infoOpen && (
             <div className={styles.accordionContent}>
@@ -480,12 +516,12 @@ export const GiveawayDetails = () => {
 
         {/* Terms and Conditions Accordion */}
         <div className={styles.accordionWrap}>
-          <button className={styles.accordionToggle} onClick={() => setTermsOpen(!termsOpen)}>
+          <button className={styles.accordionToggle} onClick={() => setTermsOpen(!termsOpen)} type="button">
             <div className={styles.toggleTitle}>
-              <FileText size={18} className={styles.termsIcon} />
+              <FileText size={18} className={styles.termsIcon} aria-hidden="true" />
               <span>Terms & Conditions</span>
             </div>
-            <ChevronDown size={18} className={termsOpen ? styles.chevronRotated : ''} />
+            <ChevronDown size={18} className={termsOpen ? styles.chevronRotated : ''} aria-hidden="true" />
           </button>
           {termsOpen && (
             <div className={styles.accordionContent}>
@@ -500,9 +536,7 @@ export const GiveawayDetails = () => {
       {/* Confirmation Modal */}
       <JoinConfirmationModal
         isOpen={confirmModalOpen}
-        onClose={() => {
-          if (!joinLoading) setConfirmModalOpen(false);
-        }}
+        onClose={handleCloseJoinModal}
         prize={prizeData}
         userWallet={user?.wallet}
         onConfirmJoin={handleConfirmJoin}

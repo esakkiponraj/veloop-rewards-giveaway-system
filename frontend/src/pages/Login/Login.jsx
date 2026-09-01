@@ -4,13 +4,45 @@ import { User, Lock, ArrowRight, ShieldCheck, Sparkles, AlertCircle, Loader2 } f
 import { useAuth } from '../../context/AuthContext.jsx';
 import styles from './Login.module.css';
 
+/**
+ * Strict open-redirect defense: only allows safe relative application routes
+ * Unsafe or external return URLs safely fall back to '/giveaways'
+ */
+export const sanitizeReturnUrl = (url, defaultFallback = '/giveaways') => {
+  if (!url || typeof url !== 'string') return defaultFallback;
+  const trimmed = url.trim();
+
+  // Must begin with single '/' and never '//' (protocol-relative external redirect)
+  if (!trimmed.startsWith('/') || trimmed.startsWith('//')) {
+    return defaultFallback;
+  }
+
+  // Reject URL schemes, backslashes, encoded slashes, or script injections
+  const lower = trimmed.toLowerCase();
+  if (
+    lower.includes('javascript:') ||
+    lower.includes('data:') ||
+    lower.includes('vbscript:') ||
+    lower.includes('http:') ||
+    lower.includes('https:') ||
+    lower.includes('%2f%2f') ||
+    lower.includes('%5c') ||
+    lower.includes('\\')
+  ) {
+    return defaultFallback;
+  }
+
+  return trimmed;
+};
+
 export const Login = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { login } = useAuth();
 
   const queryParams = new URLSearchParams(location.search);
-  const returnUrl = location.state?.from || queryParams.get('returnUrl') || '/';
+  const rawReturnUrl = location.state?.from || queryParams.get('returnUrl') || '/giveaways';
+  const safeReturnUrl = sanitizeReturnUrl(rawReturnUrl, '/giveaways');
 
   const [emailOrUsername, setEmailOrUsername] = useState('');
   const [password, setPassword] = useState('');
@@ -23,7 +55,7 @@ export const Login = () => {
     setErrorMsg('');
     try {
       await login(emailOrUsername, password);
-      navigate(returnUrl);
+      navigate(safeReturnUrl);
     } catch (err) {
       setErrorMsg(err.message || 'Login failed. Please check credentials.');
     } finally {
@@ -36,7 +68,7 @@ export const Login = () => {
     setErrorMsg('');
     try {
       await login(email, 'password123');
-      navigate(returnUrl);
+      navigate(safeReturnUrl);
     } catch (err) {
       setErrorMsg(err.message || 'Quick login failed.');
     } finally {
@@ -60,7 +92,7 @@ export const Login = () => {
           {/* 1-Click Test User Switcher for Reviewers */}
           <div className={styles.reviewerSection}>
             <div className={styles.reviewerBadge}>
-              <Sparkles size={14} />
+              <Sparkles size={14} aria-hidden="true" />
               <span>1-CLICK EVALUATION PROFILES</span>
             </div>
 
@@ -75,7 +107,7 @@ export const Login = () => {
                   <strong>Alex Vance (Standard User)</strong>
                   <span>850 VEs · 1,200 SVEs · 5,000 Tokens</span>
                 </div>
-                <ArrowRight size={14} className={styles.demoArrow} />
+                <ArrowRight size={14} className={styles.demoArrow} aria-hidden="true" />
               </button>
 
               <button
@@ -88,7 +120,7 @@ export const Login = () => {
                   <strong>Jordan Lee (Low Balance)</strong>
                   <span>120 VEs · Test Insufficient Balance state</span>
                 </div>
-                <ArrowRight size={14} className={styles.demoArrow} />
+                <ArrowRight size={14} className={styles.demoArrow} aria-hidden="true" />
               </button>
 
               <button
@@ -101,7 +133,7 @@ export const Login = () => {
                   <strong>Rohan Sharma (Winner VE10025)</strong>
                   <span>Won Apple Watch · Test Claim Form</span>
                 </div>
-                <ArrowRight size={14} className={styles.demoArrow} />
+                <ArrowRight size={14} className={styles.demoArrow} aria-hidden="true" />
               </button>
 
               <button
@@ -114,7 +146,7 @@ export const Login = () => {
                   <strong>VELOOP SuperAdmin</strong>
                   <span>Access Admin Control Portal</span>
                 </div>
-                <ArrowRight size={14} className={styles.demoArrow} />
+                <ArrowRight size={14} className={styles.demoArrow} aria-hidden="true" />
               </button>
             </div>
           </div>
@@ -127,7 +159,7 @@ export const Login = () => {
           <form onSubmit={handleSubmit} className={styles.form}>
             {errorMsg && (
               <div className={styles.errorAlert}>
-                <AlertCircle size={16} />
+                <AlertCircle size={16} aria-hidden="true" />
                 <span>{errorMsg}</span>
               </div>
             )}
@@ -135,7 +167,7 @@ export const Login = () => {
             <div>
               <label className={styles.label}>Email / Username / User ID</label>
               <div className={styles.inputWrap}>
-                <User size={16} className={styles.inputIcon} />
+                <User size={16} className={styles.inputIcon} aria-hidden="true" />
                 <input
                   type="text"
                   value={emailOrUsername}
@@ -150,7 +182,7 @@ export const Login = () => {
             <div>
               <label className={styles.label}>Password</label>
               <div className={styles.inputWrap}>
-                <Lock size={16} className={styles.inputIcon} />
+                <Lock size={16} className={styles.inputIcon} aria-hidden="true" />
                 <input
                   type="password"
                   value={password}
@@ -165,20 +197,20 @@ export const Login = () => {
             <button type="submit" className="btn-veloop-primary" style={{ width: '100%', marginTop: '8px' }} disabled={loading}>
               {loading ? (
                 <>
-                  <Loader2 size={16} className={styles.spinner} />
+                  <Loader2 size={16} className={styles.spinner} aria-hidden="true" />
                   <span>Signing In...</span>
                 </>
               ) : (
                 <>
                   <span>Sign In</span>
-                  <ArrowRight size={16} />
+                  <ArrowRight size={16} aria-hidden="true" />
                 </>
               )}
             </button>
           </form>
 
           <div className={styles.footerNote}>
-            <ShieldCheck size={14} />
+            <ShieldCheck size={14} aria-hidden="true" />
             <span>Encrypted with secure JWT sessions & device hash telemetry.</span>
           </div>
         </div>

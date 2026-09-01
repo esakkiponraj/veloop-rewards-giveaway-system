@@ -86,6 +86,17 @@ export const processJoinGiveaway = async ({
     throw error;
   }
 
+  // 4b. Authoritative Check: Reject participation if prize is pending merchant confirmation
+  if (prize.isPendingConfirmation === true) {
+    const error = new Error(
+      prize.pendingConfirmationNote ||
+        'Participation for this prize is temporarily disabled pending final merchant confirmation.'
+    );
+    error.code = 'PRIZE_PENDING_CONFIRMATION';
+    error.statusCode = 400;
+    throw error;
+  }
+
   // Generate deterministic request fingerprint
   const requestFingerprint = `JOIN:${giveaway.giveawayId}:${prize.prizeId}`;
 
