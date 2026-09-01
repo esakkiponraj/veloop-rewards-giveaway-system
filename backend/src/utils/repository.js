@@ -279,12 +279,16 @@ export const repo = {
   // PARTICIPATION OPERATIONS (Strict Persistent MongoDB)
   // =========================================================================
   getUserParticipation: async (userId, giveawayId, prizeId = null) => {
-    ensureMongoConnected();
-    const query = { userId, giveawayId };
-    if (prizeId) {
-      query.prizeId = prizeId;
+    if (isMongoConnected()) {
+      const query = { userId, giveawayId };
+      if (prizeId) {
+        query.prizeId = prizeId;
+      }
+      return await GiveawayParticipation.findOne(query);
     }
-    return await GiveawayParticipation.findOne(query);
+    return inMemoryDB.participations?.find(
+      (p) => p.userId === userId && p.giveawayId === giveawayId && (!prizeId || p.prizeId === prizeId)
+    ) || null;
   },
 
   createParticipation: async (data, session = null) => {
@@ -294,8 +298,10 @@ export const repo = {
   },
 
   getUserParticipations: async (userId) => {
-    ensureMongoConnected();
-    return await GiveawayParticipation.find({ userId }).sort({ joinedAt: -1 });
+    if (isMongoConnected()) {
+      return await GiveawayParticipation.find({ userId }).sort({ joinedAt: -1 });
+    }
+    return inMemoryDB.participations?.filter((p) => p.userId === userId) || [];
   },
 
   // =========================================================================
@@ -316,24 +322,32 @@ export const repo = {
   },
 
   getUserWinnerRecord: async (userId, giveawayId, prizeId = null) => {
-    ensureMongoConnected();
-    const query = { userId, giveawayId };
-    if (prizeId) {
-      query.prizeId = prizeId;
+    if (isMongoConnected()) {
+      const query = { userId, giveawayId };
+      if (prizeId) {
+        query.prizeId = prizeId;
+      }
+      return await GiveawayWinner.findOne(query);
     }
-    return await GiveawayWinner.findOne(query);
+    return inMemoryDB.winners?.find(
+      (w) => w.userId === userId && w.giveawayId === giveawayId && (!prizeId || w.prizeId === prizeId)
+    ) || null;
   },
 
   // =========================================================================
   // CLAIMS OPERATIONS (Strict Persistent MongoDB)
   // =========================================================================
   getUserClaim: async (userId, giveawayId, prizeId = null) => {
-    ensureMongoConnected();
-    const query = { userId, giveawayId };
-    if (prizeId) {
-      query.prizeId = prizeId;
+    if (isMongoConnected()) {
+      const query = { userId, giveawayId };
+      if (prizeId) {
+        query.prizeId = prizeId;
+      }
+      return await PrizeClaim.findOne(query);
     }
-    return await PrizeClaim.findOne(query);
+    return inMemoryDB.claims?.find(
+      (c) => c.userId === userId && c.giveawayId === giveawayId && (!prizeId || c.prizeId === prizeId)
+    ) || null;
   },
 
   createClaim: async (data, session = null) => {

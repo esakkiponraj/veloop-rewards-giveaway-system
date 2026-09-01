@@ -178,6 +178,8 @@ export const GiveawayDetails = () => {
         friendlyMsg = 'This join transaction was already submitted with a different prize configuration.';
       } else if (err.code === 'GIVEAWAY_ENDED') {
         friendlyMsg = 'This giveaway has concluded and is no longer accepting new entries.';
+      } else if (err.code === 'SERVICE_UNAVAILABLE' || err.statusCode === 503) {
+        friendlyMsg = 'Database service is temporarily unavailable. Please verify your MongoDB connection.';
       }
       setJoinError(friendlyMsg);
     } finally {
