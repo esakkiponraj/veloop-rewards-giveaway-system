@@ -1,13 +1,12 @@
 import React, { useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { CheckCircle2, Ticket, Sparkles, ArrowRight, ShieldCheck } from 'lucide-react';
+import { CheckCircle2, Ticket, ArrowRight, ShieldCheck } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import styles from './SuccessfulParticipationModal.module.css';
 
 export const SuccessfulParticipationModal = ({ isOpen, onClose, details }) => {
   useEffect(() => {
     if (isOpen) {
-      // Trigger restrained celebration confetti
       try {
         confetti({
           particleCount: 50,
@@ -19,7 +18,15 @@ export const SuccessfulParticipationModal = ({ isOpen, onClose, details }) => {
         // ignore
       }
     }
-  }, [isOpen]);
+
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape' && isOpen) {
+        onClose();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, onClose]);
 
   if (!isOpen || !details) return null;
 
@@ -33,6 +40,8 @@ export const SuccessfulParticipationModal = ({ isOpen, onClose, details }) => {
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.9, y: 20 }}
           transition={{ duration: 0.25 }}
+          role="dialog"
+          aria-modal="true"
         >
           {/* Success Icon */}
           <div className={styles.iconCircle}>
@@ -54,6 +63,11 @@ export const SuccessfulParticipationModal = ({ isOpen, onClose, details }) => {
             <div className={styles.ticketRow}>
               <span className={styles.tLabel}>Prize</span>
               <span className={styles.tVal}>{details.prizeName}</span>
+            </div>
+
+            <div className={styles.ticketRow}>
+              <span className={styles.tLabel}>Entries Allocated</span>
+              <span className={styles.tValGold}>{details.entryCount || 1} Entry</span>
             </div>
 
             <div className={styles.ticketRow}>

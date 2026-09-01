@@ -1,11 +1,10 @@
-import React, { useState, useEffect } from 'react';
-import { useParams, Link, useNavigate } from 'react-router-dom';
+import React, { useState, useEffect, useRef } from 'react';
+import { useParams, Link, useNavigate, useLocation } from 'react-router-dom';
 import {
   ArrowLeft,
   ShieldCheck,
   Trophy,
   Users,
-  Clock,
   Coins,
   CheckCircle2,
   AlertCircle,
@@ -14,6 +13,8 @@ import {
   FileText,
   ChevronDown,
   ArrowRight,
+  RefreshCw,
+  Clock,
 } from 'lucide-react';
 import { getPrizeBySlug, getMyGiveawayStatus, joinGiveaway } from '../../services/giveawayApi.js';
 import { useAuth } from '../../context/AuthContext.jsx';
@@ -26,6 +27,7 @@ import styles from './GiveawayDetails.module.css';
 export const GiveawayDetails = () => {
   const { slug } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
   const { user, updateWallet } = useAuth();
 
   const [prizeData, setPrizeData] = useState(null);
@@ -34,11 +36,15 @@ export const GiveawayDetails = () => {
   const [loading, setLoading] = useState(true);
   const [joinLoading, setJoinLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [joinError, setJoinError] = useState(null);
 
   // Modals
   const [confirmModalOpen, setConfirmModalOpen] = useState(false);
   const [successModalOpen, setSuccessModalOpen] = useState(false);
   const [successDetails, setSuccessDetails] = useState(null);
+
+  // Idempotency Key for current intentional join attempt
+  const currentIdempotencyKeyRef = useRef(null);
 
   // Expandable sections
   const [infoOpen, setInfoOpen] = useState(true);
@@ -54,9 +60,13 @@ export const GiveawayDetails = () => {
         setGiveawayData(res.giveaway);
 
         if (user && res.giveaway) {
-          const statusRes = await getMyGiveawayStatus(res.giveaway.giveawayId);
-          if (statusRes.success) {
-            setUserStatus(statusRes);
+          try {
+            const statusRes = await getMyGiveawayStatus(res.giveaway.giveawayId, res.prize?.prizeId);
+            if (statusRes.success) {
+              setUserStatus(statusRes);
+            }
+          } catch (e) {
+            // ignore non-blocking status fetch error
           }
         }
       }
@@ -71,14 +81,33 @@ export const GiveawayDetails = () => {
     fetchPrizeDetails();
   }, [slug, user]);
 
+  const handleOpenJoinModal = () => {
+    // Generate one unique idempotency key for this intentional join attempt
+    if (!currentIdempotencyKeyRef.current) {
+      currentIdempotencyKeyRef.current = `IDEMP-${user?.userId || 'GUEST'}-${Date.now()}-${Math.random()
+        .toString(36)
+        .substring(2, 7)
+        .toUpperCase()}`;
+    }
+    setJoinError(null);
+    setConfirmModalOpen(true);
+  };
+
   const handleConfirmJoin = async () => {
-    if (!prizeData || !giveawayData) return;
+    if (!prizeData || !giveawayData || joinLoading) return;
     setJoinLoading(true);
+    setJoinError(null);
+
+    // Reuse identical idempotency key for retries and rapid repeated clicks of this attempt
+    const idempotencyKey = currentIdempotencyKeyRef.current;
+
     try {
-      const idempotencyKey = `IDEMP-${user.userId}-${giveawayData.giveawayId}-${Date.now()}`;
       const res = await joinGiveaway(giveawayData.giveawayId, prizeData.prizeId, idempotencyKey);
 
       if (res.success) {
+        // Clear idempotency key on completed outcome
+        currentIdempotencyKeyRef.current = null;
+
         // Update user wallet balance instantly in auth context
         if (res.wallet) {
           updateWallet(res.wallet);
@@ -88,23 +117,45 @@ export const GiveawayDetails = () => {
           prizeName: prizeData.name,
           entryAmount: prizeData.entryAmount,
           entryCurrency: prizeData.entryCurrency,
+          entryCount: res.participation?.entryCount || 1,
           transactionId: res.transaction?.transactionId || res.participation?.transactionId,
         });
 
         setConfirmModalOpen(false);
         setSuccessModalOpen(true);
+
         // Refresh local status
-        setUserStatus((prev) => ({
-          ...prev,
+        setUserStatus({
+          success: true,
           isParticipating: true,
           participation: res.participation,
-        }));
+        });
       }
     } catch (err) {
-      alert(err.message || 'Failed to join giveaway.');
+      console.error('Join giveaway error:', err);
+      // Map error codes to friendly messages
+      let friendlyMsg = err.message || 'Failed to complete participation.';
+      if (err.code === 'INSUFFICIENT_VE_BALANCE') {
+        friendlyMsg = 'Your VEs balance is insufficient to join this prize.';
+      } else if (err.code === 'INSUFFICIENT_SVE_BALANCE') {
+        friendlyMsg = 'Your SVEs balance is insufficient to join this prize.';
+      } else if (err.code === 'INSUFFICIENT_TOKEN_BALANCE') {
+        friendlyMsg = 'Your Tokens balance is insufficient to join this prize.';
+      } else if (err.code === 'IDEMPOTENCY_KEY_REUSED') {
+        friendlyMsg = 'This join transaction was already submitted with a different prize configuration.';
+      } else if (err.code === 'GIVEAWAY_ENDED') {
+        friendlyMsg = 'This giveaway has concluded and is no longer accepting new entries.';
+      }
+      setJoinError(friendlyMsg);
     } finally {
       setJoinLoading(false);
     }
+  };
+
+  const getEarnMoreRoute = (curr) => {
+    if (curr === 'VEs') return '/watch-ads';
+    if (curr === 'SVEs') return '/tasks';
+    return '/tasks';
   };
 
   if (loading) {
@@ -118,10 +169,16 @@ export const GiveawayDetails = () => {
           <AlertCircle size={40} className={styles.errorIcon} />
           <h3>Giveaway Not Found</h3>
           <p>{error || 'The requested giveaway or prize does not exist.'}</p>
-          <Link to="/" className="btn-veloop-primary">
-            <ArrowLeft size={16} />
-            <span>Back to Giveaways</span>
-          </Link>
+          <div style={{ display: 'flex', gap: '12px', marginTop: '16px' }}>
+            <button className="btn-veloop-secondary" onClick={fetchPrizeDetails}>
+              <RefreshCw size={16} />
+              <span>Retry</span>
+            </button>
+            <Link to="/" className="btn-veloop-primary">
+              <ArrowLeft size={16} />
+              <span>Back to Giveaways</span>
+            </Link>
+          </div>
         </div>
       </div>
     );
@@ -133,6 +190,7 @@ export const GiveawayDetails = () => {
   const hasSufficientBalance = userBalance >= entryFee;
   const isParticipating = userStatus?.isParticipating;
   const isGiveawayActive = giveawayData?.status === 'ACTIVE';
+  const isPending = prizeData.isPendingConfirmation === true;
 
   return (
     <div className={styles.detailsPage}>
@@ -198,11 +256,25 @@ export const GiveawayDetails = () => {
             <h1 className={styles.prizeTitle}>{prizeData.name}</h1>
             <p className={styles.prizeTagline}>{prizeData.tagline || prizeData.description}</p>
 
+            {/* Pending Confirmation Warning Banner */}
+            {isPending && (
+              <div className={styles.pendingAlertBox}>
+                <AlertCircle size={18} className={styles.pendingAlertIcon} />
+                <div>
+                  <strong>Pending Final Merchant Confirmation</strong>
+                  <p>
+                    {prizeData.pendingConfirmationNote ||
+                      'The ₹20 Amazon Voucher value is pending final confirmation. Keep it configurable and clearly mark it as pending confirmation.'}
+                  </p>
+                </div>
+              </div>
+            )}
+
             {/* Countdown Box */}
             {giveawayData?.endAt && isGiveawayActive && (
               <div className={styles.countdownCard}>
                 <span className={styles.cdLabel}>GIVEAWAY ENDS IN</span>
-                <Countdown targetDate={giveawayData.endAt} />
+                <Countdown targetDate={giveawayData.endAt} onExpire={fetchPrizeDetails} />
               </div>
             )}
 
@@ -233,20 +305,31 @@ export const GiveawayDetails = () => {
 
               {/* Status Outcome */}
               {!user ? (
-                /* Visitor State */
+                /* Visitor State: Redirect to login while preserving returnUrl */
                 <div className={styles.visitorState}>
                   <p className={styles.stateNotice}>Please log in to your VELOOP Rewards account to participate.</p>
-                  <Link to="/login" className="btn-veloop-primary" style={{ width: '100%' }}>
-                    <span>Login / Sign Up to Participate</span>
+                  <button
+                    className="btn-veloop-primary"
+                    style={{ width: '100%' }}
+                    onClick={() => navigate('/login', { state: { from: location.pathname } })}
+                    id="visitor-login-btn"
+                  >
+                    <span>Login to Participate</span>
                     <ArrowRight size={16} />
-                  </Link>
+                  </button>
+                </div>
+              ) : isPending ? (
+                /* Pending Confirmation State */
+                <div className={styles.endedState}>
+                  <AlertCircle size={18} />
+                  <span>Participation is temporarily locked while merchant confirmation is finalized.</span>
                 </div>
               ) : isParticipating ? (
                 /* Already Joined State */
                 <div className={styles.joinedState}>
                   <div className={styles.joinedBadge}>
                     <CheckCircle2 size={18} />
-                    <span>You're Already Participating ✓</span>
+                    <span>You're Already Participating ✓ ({userStatus?.participation?.entryCount || 1} Entry)</span>
                   </div>
                   <p className={styles.joinedNotice}>
                     Your entry for the {prizeData.name} giveaway is cryptographically sealed in the active draw pool.
@@ -267,12 +350,12 @@ export const GiveawayDetails = () => {
                 <div className={styles.eligibleState}>
                   <div className={styles.eligibleRow}>
                     <CheckCircle2 size={16} className={styles.checkGreen} />
-                    <span>✓ You have enough {currency}</span>
+                    <span>✓ You have enough {currency} to join</span>
                   </div>
                   <button
                     className="btn-veloop-primary"
                     style={{ width: '100%', fontSize: '1rem', padding: '14px' }}
-                    onClick={() => setConfirmModalOpen(true)}
+                    onClick={handleOpenJoinModal}
                     id="join-details-page-cta"
                   >
                     <span>Join for {entryFee.toLocaleString()} {currency}</span>
@@ -291,7 +374,8 @@ export const GiveawayDetails = () => {
                   <button
                     className="btn-veloop-gold"
                     style={{ width: '100%', padding: '12px' }}
-                    onClick={() => alert('Earn more VEs / SVEs by completing daily VELOOP tasks and milestones!')}
+                    onClick={() => navigate(getEarnMoreRoute(currency))}
+                    id="earn-more-currency-btn"
                   >
                     <span>Earn More {currency} →</span>
                   </button>
@@ -416,11 +500,14 @@ export const GiveawayDetails = () => {
       {/* Confirmation Modal */}
       <JoinConfirmationModal
         isOpen={confirmModalOpen}
-        onClose={() => setConfirmModalOpen(false)}
+        onClose={() => {
+          if (!joinLoading) setConfirmModalOpen(false);
+        }}
         prize={prizeData}
         userWallet={user?.wallet}
         onConfirmJoin={handleConfirmJoin}
         loading={joinLoading}
+        errorMessage={joinError}
       />
 
       {/* Success Modal */}

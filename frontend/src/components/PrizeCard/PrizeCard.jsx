@@ -1,7 +1,7 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Users, Trophy, ArrowRight, Sparkles, Clock, Coins } from 'lucide-react';
+import { Users, Trophy, ArrowRight, Clock, Coins, AlertCircle } from 'lucide-react';
 import styles from './PrizeCard.module.css';
 
 export const PrizeCard = ({ prize, giveawayStatus, endAt }) => {
@@ -17,6 +17,15 @@ export const PrizeCard = ({ prize, giveawayStatus, endAt }) => {
     if (pos?.includes('3rd')) return styles.badgeThird;
     if (pos?.includes('Lucky')) return styles.badgeLucky;
     return styles.badgeSpecial;
+  };
+
+  const calculateDaysLeft = () => {
+    if (!endAt) return '12d Left';
+    const diff = new Date(endAt).getTime() - Date.now();
+    if (diff <= 0) return 'Ended';
+    const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+    const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+    return days > 0 ? `${days}d ${hours}h Left` : `${hours}h Left`;
   };
 
   return (
@@ -40,6 +49,14 @@ export const PrizeCard = ({ prize, giveawayStatus, endAt }) => {
           <span>{prize.winnerCount} {prize.winnerCount === 1 ? 'Winner' : 'Winners'}</span>
         </div>
       </div>
+
+      {/* Pending Confirmation Banner */}
+      {prize.isPendingConfirmation && (
+        <div className={styles.pendingBadge}>
+          <AlertCircle size={12} />
+          <span>Pending Final Merchant Confirmation</span>
+        </div>
+      )}
 
       {/* Prize Image Container */}
       <div className={styles.imageContainer}>
@@ -68,7 +85,7 @@ export const PrizeCard = ({ prize, giveawayStatus, endAt }) => {
           </div>
           <div className={styles.metaItem}>
             <Clock size={13} className={styles.metaIconGold} />
-            <span>12d Left</span>
+            <span>{calculateDaysLeft()}</span>
           </div>
         </div>
 
@@ -93,7 +110,7 @@ export const PrizeCard = ({ prize, giveawayStatus, endAt }) => {
             handleCardClick();
           }}
         >
-          <span>Join for {prize.entryAmount?.toLocaleString()} {prize.entryCurrency}</span>
+          <span>{prize.isPendingConfirmation ? 'View Prize Details' : `Join for ${prize.entryAmount?.toLocaleString()} ${prize.entryCurrency}`}</span>
           <ArrowRight size={15} />
         </button>
       </div>

@@ -158,6 +158,37 @@
   margin: 0;
 }
 
+.pendingAlertBox {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  background: rgba(245, 158, 11, 0.12);
+  border: 1px solid rgba(245, 158, 11, 0.35);
+  border-radius: var(--radius-md);
+  padding: 16px;
+  color: #fbbf24;
+}
+
+.pendingAlertIcon {
+  color: #fbbf24;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.pendingAlertBox strong {
+  display: block;
+  font-size: 0.92rem;
+  margin-bottom: 4px;
+  color: #ffffff;
+}
+
+.pendingAlertBox p {
+  margin: 0;
+  font-size: 0.82rem;
+  color: #fef08a;
+  line-height: 1.4;
+}
+
 .countdownCard {
   background: var(--bg-surface-1);
   border: 1px solid var(--border-glass);

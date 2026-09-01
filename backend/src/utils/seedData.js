@@ -24,7 +24,7 @@ export const seedDatabase = async () => {
     await AuditLog.deleteMany({});
 
     console.log('[Seed] Seeding test users...');
-    const users = await User.create([
+    await User.create([
       {
         userId: 'VE10842',
         username: 'Alex Vance',
@@ -37,6 +37,7 @@ export const seedDatabase = async () => {
           SVEs: 1200,
           Tokens: 5000,
         },
+        streak: 12,
         fraudRiskScore: 5,
       },
       {
@@ -51,6 +52,7 @@ export const seedDatabase = async () => {
           SVEs: 150,
           Tokens: 600,
         },
+        streak: 3,
         fraudRiskScore: 10,
       },
       {
@@ -65,6 +67,7 @@ export const seedDatabase = async () => {
           SVEs: 900,
           Tokens: 3500,
         },
+        streak: 8,
         fraudRiskScore: 0,
       },
       {
@@ -79,6 +82,7 @@ export const seedDatabase = async () => {
           SVEs: 99999,
           Tokens: 999999,
         },
+        streak: 30,
         fraudRiskScore: 0,
       },
     ]);
@@ -115,6 +119,7 @@ export const seedDatabase = async () => {
         claimType: 'SHIPPING_ADDRESS',
         marketValue: '₹1,34,900',
         eligibilityNotes: 'All verified VELOOP tier members with at least 250 VEs balance.',
+        isPendingConfirmation: false,
       },
       {
         prizeId: 'PRIZE-APPLEWATCH9',
@@ -141,6 +146,7 @@ export const seedDatabase = async () => {
         claimType: 'SHIPPING_ADDRESS',
         marketValue: '₹44,900',
         eligibilityNotes: 'Requires active VELOOP account with minimum 200 VEs balance.',
+        isPendingConfirmation: false,
       },
       {
         prizeId: 'PRIZE-AIRPODSPRO2',
@@ -167,6 +173,7 @@ export const seedDatabase = async () => {
         claimType: 'SHIPPING_ADDRESS',
         marketValue: '₹24,900',
         eligibilityNotes: 'Requires SVEs (Super VELOOP Earnings) earned via platform milestones.',
+        isPendingConfirmation: false,
       },
       {
         prizeId: 'PRIZE-AMAZON2000',
@@ -193,6 +200,7 @@ export const seedDatabase = async () => {
         claimType: 'EMAIL_DELIVERY',
         marketValue: '₹2,000',
         eligibilityNotes: 'Open to all Indian residents with verified Amazon.in accounts.',
+        isPendingConfirmation: false,
       },
       {
         prizeId: 'PRIZE-AMAZON500',
@@ -218,6 +226,7 @@ export const seedDatabase = async () => {
         claimType: 'EMAIL_DELIVERY',
         marketValue: '₹500',
         eligibilityNotes: 'Requires 300 VEs balance.',
+        isPendingConfirmation: false,
       },
       {
         prizeId: 'PRIZE-AMAZON20',
@@ -242,6 +251,9 @@ export const seedDatabase = async () => {
         claimType: 'EMAIL_DELIVERY',
         marketValue: '₹20',
         eligibilityNotes: 'Redeemable with platform activity Tokens.',
+        isPendingConfirmation: true,
+        pendingConfirmationNote:
+          'The ₹20 Amazon Voucher value is pending final confirmation. Keep it configurable and clearly mark it as pending confirmation.',
       },
     ]);
 
@@ -261,9 +273,9 @@ export const seedDatabase = async () => {
       prizes: currentPrizes.map((p) => p._id),
       rules: [
         {
-          title: 'One Entry Per Giveaway Event',
+          title: 'One Entry Per Prize Giveaway',
           description:
-            'Each verified VELOOP member is permitted exactly one entry per giveaway event. Duplicate submissions from the same account are automatically rejected by our database integrity engine.',
+            'Each verified VELOOP member is permitted exactly one entry per prize giveaway event. Initial participation gives one entry. Duplicate submissions from the same account are automatically rejected by our database integrity engine.',
         },
         {
           title: 'Authoritative Balance Verification',
@@ -404,6 +416,7 @@ export const seedDatabase = async () => {
         winnerCount: 1,
         claimType: 'SHIPPING_ADDRESS',
         marketValue: '₹44,900',
+        isPendingConfirmation: false,
       },
       {
         prizeId: 'PRIZE-PAST-AMAZON',
@@ -421,6 +434,7 @@ export const seedDatabase = async () => {
         winnerCount: 3,
         claimType: 'EMAIL_DELIVERY',
         marketValue: '₹2,000',
+        isPendingConfirmation: false,
       },
     ]);
 

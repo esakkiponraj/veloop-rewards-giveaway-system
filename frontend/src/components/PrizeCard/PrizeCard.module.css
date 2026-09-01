@@ -78,6 +78,21 @@
   border: 1px solid var(--border-subtle);
 }
 
+.pendingBadge {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(245, 158, 11, 0.15);
+  color: #f59e0b;
+  border: 1px solid rgba(245, 158, 11, 0.3);
+  padding: 4px 8px;
+  border-radius: var(--radius-xs);
+  font-size: 0.7rem;
+  font-weight: 700;
+  margin-bottom: 8px;
+  z-index: 2;
+}
+
 .imageContainer {
   position: relative;
   width: 100%;

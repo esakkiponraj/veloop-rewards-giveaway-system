@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { Trophy, Gift, ArrowRight, CheckCircle2, Clock, ShieldCheck, Ticket, AlertCircle } from 'lucide-react';
+import { Trophy, Gift, ArrowRight, CheckCircle2, Ticket } from 'lucide-react';
 import { getMyEntries } from '../../services/giveawayApi.js';
 import { useAuth } from '../../context/AuthContext.jsx';
 import { CustomLoader } from '../../components/CustomLoader/CustomLoader.jsx';
@@ -112,6 +112,10 @@ export const MyEntries = () => {
 
                 {/* Meta Details */}
                 <div className={styles.metaBox}>
+                  <div className={styles.metaRow}>
+                    <span>Entries Allocated:</span>
+                    <strong style={{ color: 'var(--brand-gold)' }}>{entry.entryCount || 1} Entry</strong>
+                  </div>
                   <div className={styles.metaRow}>
                     <span>Transaction ID:</span>
                     <strong className={styles.monoTxn}>{entry.transactionId}</strong>

@@ -8,6 +8,10 @@ export const getPreviousGiveaways = async () => {
   return await apiRequest('/giveaways/previous');
 };
 
+export const getGiveawayBySlug = async (slug) => {
+  return await apiRequest(`/giveaways/slug/${slug}`);
+};
+
 export const getGiveawayById = async (id) => {
   return await apiRequest(`/giveaways/${id}`);
 };
@@ -16,12 +20,22 @@ export const getPrizeBySlug = async (slug) => {
   return await apiRequest(`/giveaways/prizes/${slug}`);
 };
 
-export const getMyGiveawayStatus = async (giveawayId) => {
-  return await apiRequest(`/giveaways/${giveawayId}/my-status`);
+export const getGiveawayPrizeDetails = async (giveawayId, prizeId) => {
+  return await apiRequest(`/giveaways/${giveawayId}/prizes/${prizeId}`);
+};
+
+export const getMyGiveawayStatus = async (giveawayId, prizeId = null) => {
+  const url = prizeId
+    ? `/giveaways/${giveawayId}/prizes/${prizeId}/my-status`
+    : `/giveaways/${giveawayId}/my-status`;
+  return await apiRequest(url);
 };
 
 export const joinGiveaway = async (giveawayId, prizeId, idempotencyKey) => {
-  return await apiRequest(`/giveaways/${giveawayId}/join`, {
+  const url = prizeId
+    ? `/giveaways/${giveawayId}/prizes/${prizeId}/join`
+    : `/giveaways/${giveawayId}/join`;
+  return await apiRequest(url, {
     method: 'POST',
     body: JSON.stringify({ prizeId, idempotencyKey }),
   });
@@ -36,14 +50,20 @@ export const getAllPreviousWinners = async () => {
 };
 
 export const claimPrize = async (giveawayId, prizeId, claimData) => {
-  return await apiRequest(`/giveaways/${giveawayId}/claim`, {
+  const url = prizeId
+    ? `/giveaways/${giveawayId}/prizes/${prizeId}/claim`
+    : `/giveaways/${giveawayId}/claim`;
+  return await apiRequest(url, {
     method: 'POST',
     body: JSON.stringify({ prizeId, ...claimData }),
   });
 };
 
-export const getMyClaim = async (giveawayId) => {
-  return await apiRequest(`/giveaways/${giveawayId}/my-claim`);
+export const getMyClaim = async (giveawayId, prizeId = null) => {
+  const url = prizeId
+    ? `/giveaways/${giveawayId}/prizes/${prizeId}/my-claim`
+    : `/giveaways/${giveawayId}/my-claim`;
+  return await apiRequest(url);
 };
 
 export const getMyEntries = async () => {

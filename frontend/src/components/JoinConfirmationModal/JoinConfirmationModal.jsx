@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, ShieldCheck, AlertCircle, ArrowRight, Loader2, Coins } from 'lucide-react';
+import { X, ShieldCheck, AlertCircle, ArrowRight, Loader2 } from 'lucide-react';
 import styles from './JoinConfirmationModal.module.css';
 
 export const JoinConfirmationModal = ({
@@ -10,8 +10,19 @@ export const JoinConfirmationModal = ({
   userWallet,
   onConfirmJoin,
   loading = false,
+  errorMessage = null,
 }) => {
   const [agreedToTerms, setAgreedToTerms] = useState(true);
+
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape' && isOpen && !loading) {
+        onClose();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, loading, onClose]);
 
   if (!isOpen || !prize) return null;
 
@@ -23,7 +34,7 @@ export const JoinConfirmationModal = ({
 
   return (
     <AnimatePresence>
-      <div className={styles.modalBackdrop} onClick={onClose}>
+      <div className={styles.modalBackdrop} onClick={loading ? undefined : onClose}>
         <motion.div
           className={styles.modalCard}
           onClick={(e) => e.stopPropagation()}
@@ -36,7 +47,7 @@ export const JoinConfirmationModal = ({
           aria-labelledby="modal-title"
         >
           {/* Close Button */}
-          <button className={styles.closeBtn} onClick={onClose} aria-label="Close modal">
+          <button className={styles.closeBtn} onClick={onClose} disabled={loading} aria-label="Close modal">
             <X size={18} />
           </button>
 
@@ -53,6 +64,14 @@ export const JoinConfirmationModal = ({
               Please review the currency deduction details before confirming your entry.
             </p>
           </div>
+
+          {/* Error Message Display if API rejected */}
+          {errorMessage && (
+            <div className={styles.insufficientAlert} style={{ borderColor: 'rgba(239, 68, 68, 0.4)' }}>
+              <AlertCircle size={18} className={styles.alertIcon} />
+              <p className={styles.alertText}>{errorMessage}</p>
+            </div>
+          )}
 
           {/* Balance Calculation Box */}
           <div className={styles.calcBox}>
@@ -98,6 +117,7 @@ export const JoinConfirmationModal = ({
               checked={agreedToTerms}
               onChange={(e) => setAgreedToTerms(e.target.checked)}
               className={styles.checkboxInput}
+              disabled={loading}
             />
             <span className={styles.checkboxText}>
               I confirm that I have reviewed the official giveaway rules, eligibility criteria, and participation terms.

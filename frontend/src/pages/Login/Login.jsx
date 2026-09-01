@@ -1,12 +1,16 @@
 import React, { useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { User, Lock, ArrowRight, ShieldCheck, Sparkles, AlertCircle, Loader2 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext.jsx';
 import styles from './Login.module.css';
 
 export const Login = () => {
   const navigate = useNavigate();
-  const { login, demoAccounts } = useAuth();
+  const location = useLocation();
+  const { login } = useAuth();
+
+  const queryParams = new URLSearchParams(location.search);
+  const returnUrl = location.state?.from || queryParams.get('returnUrl') || '/';
 
   const [emailOrUsername, setEmailOrUsername] = useState('');
   const [password, setPassword] = useState('');
@@ -19,7 +23,7 @@ export const Login = () => {
     setErrorMsg('');
     try {
       await login(emailOrUsername, password);
-      navigate('/');
+      navigate(returnUrl);
     } catch (err) {
       setErrorMsg(err.message || 'Login failed. Please check credentials.');
     } finally {
@@ -32,7 +36,7 @@ export const Login = () => {
     setErrorMsg('');
     try {
       await login(email, 'password123');
-      navigate('/');
+      navigate(returnUrl);
     } catch (err) {
       setErrorMsg(err.message || 'Quick login failed.');
     } finally {
@@ -175,7 +179,7 @@ export const Login = () => {
 
           <div className={styles.footerNote}>
             <ShieldCheck size={14} />
-            <span>Encrypted with SHA-256 JWT security & device hash authentication.</span>
+            <span>Encrypted with secure JWT sessions & device hash telemetry.</span>
           </div>
         </div>
       </div>
