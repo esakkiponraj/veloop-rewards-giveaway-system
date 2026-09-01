@@ -1,0 +1,138 @@
+.footer {
+  background: var(--bg-surface-1);
+  border-top: 1px solid var(--border-subtle);
+  padding: 60px 0 30px 0;
+  margin-top: 80px;
+}
+
+.footerContent {
+  display: flex;
+  flex-direction: column;
+}
+
+.topRow {
+  display: grid;
+  grid-template-columns: 2fr 1fr 1.2fr;
+  gap: 40px;
+}
+
+.brandCol {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.footerLogo {
+  height: 36px;
+  width: auto;
+  align-self: flex-start;
+}
+
+.tagline {
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+  line-height: 1.6;
+  max-width: 420px;
+  margin: 0;
+}
+
+.trustBadges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 8px;
+}
+
+.trustPill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: var(--radius-pill);
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #c084fc;
+  background: rgba(139, 92, 246, 0.1);
+  border: 1px solid rgba(139, 92, 246, 0.25);
+}
+
+.linksCol, .supportCol {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.colTitle {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #ffffff;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  margin: 0;
+}
+
+.linksList {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+}
+
+.linksList a {
+  font-size: 0.88rem;
+  color: var(--text-secondary);
+  transition: color var(--transition-fast);
+}
+
+.linksList a:hover {
+  color: var(--brand-purple-light);
+}
+
+.supportText {
+  font-size: 0.88rem;
+  color: var(--text-secondary);
+  line-height: 1.5;
+  margin: 0;
+}
+
+.bottomDivider {
+  height: 1px;
+  background: var(--border-subtle);
+  margin: 40px 0 24px 0;
+}
+
+.bottomRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 20px;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+.copyright {
+  margin: 0;
+}
+
+.disclaimer {
+  margin: 0;
+  font-size: 0.75rem;
+  text-align: right;
+}
+
+@media (max-width: 900px) {
+  .topRow {
+    grid-template-columns: 1fr;
+    gap: 30px;
+  }
+  .bottomRow {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+  }
+  .disclaimer {
+    text-align: left;
+  }
+}

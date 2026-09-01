@@ -1,0 +1,239 @@
+.passCard {
+  background: var(--bg-surface-1);
+  border: 1px solid var(--border-glass);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  box-shadow: var(--shadow-card);
+  margin-bottom: 40px;
+}
+
+.passCardGuest {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  background: linear-gradient(135deg, rgba(139, 92, 246, 0.12) 0%, rgba(18, 19, 30, 0.9) 100%);
+  border: 1px solid rgba(139, 92, 246, 0.3);
+  border-radius: var(--radius-lg);
+  padding: 24px 32px;
+  margin-bottom: 40px;
+}
+
+.guestIconWrap {
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  background: rgba(139, 92, 246, 0.2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.sparkle {
+  color: var(--brand-gold);
+}
+
+.guestText {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex-grow: 1;
+}
+
+.guestTitle {
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: #ffffff;
+  margin: 0;
+}
+
+.guestSubtitle {
+  font-size: 0.88rem;
+  color: var(--text-secondary);
+  margin: 0;
+  max-width: 650px;
+}
+
+.goldHeaderBar {
+  background: linear-gradient(90deg, #1e1b4b 0%, #1f2937 100%);
+  padding: 8px 24px;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.headerTitleRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.passLabel {
+  font-family: var(--font-heading);
+  font-size: 0.75rem;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  color: var(--brand-gold);
+}
+
+.passStatusActive {
+  font-family: var(--font-heading);
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #34d399;
+  letter-spacing: 0.05em;
+}
+
+.passBody {
+  display: grid;
+  grid-template-columns: 1.2fr 1.2fr 1.5fr 1fr;
+  align-items: center;
+  gap: 20px;
+  padding: 20px 24px;
+}
+
+.userProfileCol {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.avatar {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--brand-purple) 0%, #3b82f6 100%);
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-heading);
+  font-size: 1.1rem;
+  font-weight: 800;
+  flex-shrink: 0;
+}
+
+.memberName {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #ffffff;
+  margin: 0;
+}
+
+.memberId {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  color: var(--brand-purple-light);
+}
+
+.statusCol, .balancesCol {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.colHeader {
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: var(--text-muted);
+  letter-spacing: 0.08em;
+}
+
+.participatingBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: #34d399;
+  background: rgba(16, 185, 129, 0.15);
+  border: 1px solid rgba(16, 185, 129, 0.35);
+  padding: 4px 12px;
+  border-radius: var(--radius-pill);
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+.notJoinedBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: #38bdf8;
+  background: rgba(56, 189, 248, 0.15);
+  border: 1px solid rgba(56, 189, 248, 0.35);
+  padding: 4px 12px;
+  border-radius: var(--radius-pill);
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.balancesRow {
+  display: flex;
+  gap: 10px;
+}
+
+.balanceTag {
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-surface-2);
+  border: 1px solid var(--border-glass);
+  padding: 4px 10px;
+  border-radius: var(--radius-xs);
+}
+
+.bLabel {
+  font-size: 0.62rem;
+  color: var(--text-muted);
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.bVal {
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+  font-weight: 800;
+  color: #ffffff;
+}
+
+.actionCol {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.entriesLink {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--brand-purple-light);
+  background: var(--bg-surface-2);
+  border: 1px solid var(--border-glass);
+  padding: 8px 14px;
+  border-radius: var(--radius-pill);
+  transition: all var(--transition-fast);
+}
+
+.entriesLink:hover {
+  background: var(--bg-surface-3);
+  color: #ffffff;
+  border-color: var(--border-purple-glow);
+}
+
+@media (max-width: 1024px) {
+  .passBody {
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+  }
+  .actionCol {
+    justify-content: flex-start;
+  }
+}
+
+@media (max-width: 640px) {
+  .passBody {
+    grid-template-columns: 1fr;
+  }
+  .passCardGuest {
+    flex-direction: column;
+    align-items: flex-start;
+    padding: 20px;
+  }
+}

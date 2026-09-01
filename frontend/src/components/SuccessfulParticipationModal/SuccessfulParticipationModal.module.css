@@ -1,0 +1,133 @@
+.modalBackdrop {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(4, 5, 8, 0.85);
+  backdrop-filter: blur(8px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  z-index: 1000;
+}
+
+.modalCard {
+  background: var(--bg-surface-1);
+  border: 1px solid rgba(139, 92, 246, 0.4);
+  border-radius: var(--radius-lg);
+  width: 100%;
+  max-width: 460px;
+  padding: 32px 28px;
+  box-shadow: var(--shadow-modal), 0 0 40px rgba(139, 92, 246, 0.2);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 12px;
+}
+
+.iconCircle {
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  background: rgba(16, 185, 129, 0.15);
+  border: 1px solid rgba(16, 185, 129, 0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 4px;
+}
+
+.checkIcon {
+  color: #10b981;
+}
+
+.successTitle {
+  font-size: 1.8rem;
+  font-weight: 900;
+  color: #ffffff;
+  margin: 0;
+}
+
+.successMessage {
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+  line-height: 1.5;
+  margin: 0;
+}
+
+.ticketCard {
+  width: 100%;
+  background: var(--bg-surface-2);
+  border: 1px solid var(--border-glass);
+  border-radius: var(--radius-md);
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 10px 0;
+}
+
+.ticketHeader {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.ticketIcon {
+  color: var(--brand-gold);
+}
+
+.ticketTitle {
+  font-family: var(--font-heading);
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  color: var(--brand-gold);
+}
+
+.ticketRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.82rem;
+}
+
+.tLabel {
+  color: var(--text-muted);
+}
+
+.tVal {
+  font-weight: 700;
+  color: #ffffff;
+}
+
+.tValGold {
+  font-family: var(--font-mono);
+  font-weight: 700;
+  color: #fbbf24;
+}
+
+.tValMono {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  color: var(--brand-purple-light);
+}
+
+.tValGreen {
+  font-weight: 700;
+  color: #34d399;
+}
+
+.trustFooter {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  margin-bottom: 8px;
+}

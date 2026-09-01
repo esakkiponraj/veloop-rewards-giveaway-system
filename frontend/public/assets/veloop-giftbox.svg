@@ -1,0 +1,92 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 500" width="100%" height="100%">
+  <defs>
+    <!-- Radiant Base Glow -->
+    <radialGradient id="boxGroundGlow" cx="50%" cy="80%" r="45%">
+      <stop offset="0%" stop-color="#c084fc" stop-opacity="0.6"/>
+      <stop offset="40%" stop-color="#7c3aed" stop-opacity="0.25"/>
+      <stop offset="100%" stop-color="#000000" stop-opacity="0"/>
+    </radialGradient>
+    <!-- Purple Box Gradients -->
+    <linearGradient id="boxTop" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#9333ea"/>
+      <stop offset="100%" stop-color="#6b21a8"/>
+    </linearGradient>
+    <linearGradient id="boxLeft" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#6b21a8"/>
+      <stop offset="100%" stop-color="#3b0764"/>
+    </linearGradient>
+    <linearGradient id="boxRight" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#7e22ce"/>
+      <stop offset="100%" stop-color="#4c1d95"/>
+    </linearGradient>
+    <!-- Gold Ribbon Gradients -->
+    <linearGradient id="goldRibbon" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#fef08a"/>
+      <stop offset="30%" stop-color="#facc15"/>
+      <stop offset="70%" stop-color="#ca8a04"/>
+      <stop offset="100%" stop-color="#854d0e"/>
+    </linearGradient>
+    <!-- Bow Gradients -->
+    <radialGradient id="goldBowLeft" cx="30%" cy="30%" r="70%">
+      <stop offset="0%" stop-color="#fef08a"/>
+      <stop offset="40%" stop-color="#eab308"/>
+      <stop offset="100%" stop-color="#a16207"/>
+    </radialGradient>
+    <radialGradient id="goldBowRight" cx="70%" cy="30%" r="70%">
+      <stop offset="0%" stop-color="#fef08a"/>
+      <stop offset="40%" stop-color="#eab308"/>
+      <stop offset="100%" stop-color="#a16207"/>
+    </radialGradient>
+  </defs>
+
+  <!-- Glowing Platform Rings -->
+  <ellipse cx="250" cy="400" rx="190" ry="45" fill="url(#boxGroundGlow)"/>
+  <ellipse cx="250" cy="400" rx="160" ry="32" fill="none" stroke="#a855f7" stroke-width="2" opacity="0.6"/>
+  <ellipse cx="250" cy="400" rx="130" ry="24" fill="none" stroke="#c084fc" stroke-width="2.5" opacity="0.8"/>
+
+  <!-- Confetti / Floating Stars -->
+  <polygon points="120,160 126,174 140,174 128,184 133,198 120,188 107,198 112,184 100,174 114,174" fill="#fbbf24" opacity="0.85" transform="scale(0.8) translate(20, 20)"/>
+  <polygon points="380,140 384,152 396,152 386,160 390,172 380,164 370,172 374,160 364,152 376,152" fill="#fbbf24" opacity="0.9" transform="scale(0.8) translate(80, 10)"/>
+  <circle cx="80" cy="280" r="4" fill="#c084fc" opacity="0.7"/>
+  <circle cx="430" cy="300" r="5" fill="#facc15" opacity="0.8"/>
+  <circle cx="390" cy="380" r="3" fill="#a855f7" opacity="0.6"/>
+  <circle cx="100" cy="370" r="3.5" fill="#e879f9" opacity="0.7"/>
+
+  <!-- 3D Isometric Gift Box -->
+  <g transform="translate(0, 10)">
+    <!-- Box Body - Left Face -->
+    <path d="M 120 220 L 250 285 L 250 405 L 120 335 Z" fill="url(#boxLeft)"/>
+    <!-- Box Body - Right Face -->
+    <path d="M 250 285 L 380 220 L 380 335 L 250 405 Z" fill="url(#boxRight)"/>
+    <!-- Box Body - Top Lid Overhang Shadow -->
+    <path d="M 110 205 L 250 275 L 390 205 L 250 145 Z" fill="url(#boxTop)"/>
+    <!-- Lid Sides -->
+    <path d="M 110 205 L 250 275 L 250 295 L 110 225 Z" fill="#581c87"/>
+    <path d="M 250 275 L 390 205 L 390 225 L 250 295 Z" fill="#6b21a8"/>
+
+    <!-- Gold Ribbon Vertical (Left & Right Faces) -->
+    <path d="M 175 248 L 195 258 L 195 376 L 175 365 Z" fill="url(#goldRibbon)"/>
+    <path d="M 305 258 L 325 248 L 325 365 L 305 376 Z" fill="url(#goldRibbon)"/>
+
+    <!-- Gold Ribbon on Top Lid -->
+    <path d="M 170 180 L 250 215 L 250 240 L 170 205 Z" fill="url(#goldRibbon)"/>
+    <path d="M 330 180 L 250 215 L 250 240 L 330 205 Z" fill="url(#goldRibbon)"/>
+    <path d="M 235 152 L 265 165 L 195 248 L 165 235 Z" fill="url(#goldRibbon)"/>
+    <path d="M 265 165 L 235 152 L 305 235 L 335 248 Z" fill="url(#goldRibbon)"/>
+
+    <!-- Stars on Box surface -->
+    <polygon points="150,280 152,286 158,286 153,290 155,296 150,292 145,296 147,290 142,286 148,286" fill="#facc15" opacity="0.6"/>
+    <polygon points="220,330 222,336 228,336 223,340 225,346 220,342 215,346 217,340 212,336 218,336" fill="#facc15" opacity="0.6"/>
+    <polygon points="280,320 282,326 288,326 283,330 285,336 280,332 275,336 277,330 272,326 278,326" fill="#facc15" opacity="0.6"/>
+    <polygon points="350,265 352,271 358,271 353,275 355,281 350,277 345,281 347,275 342,271 348,271" fill="#facc15" opacity="0.6"/>
+
+    <!-- Deluxe 3D Gold Ribbon Bow -->
+    <!-- Left Loop -->
+    <path d="M 250 170 C 180 100, 140 140, 200 190 C 230 205, 250 185, 250 170 Z" fill="url(#goldBowLeft)" stroke="#ca8a04" stroke-width="2" filter="drop-shadow(0 4px 8px rgba(0,0,0,0.5))"/>
+    <!-- Right Loop -->
+    <path d="M 250 170 C 320 100, 360 140, 300 190 C 270 205, 250 185, 250 170 Z" fill="url(#goldBowRight)" stroke="#ca8a04" stroke-width="2" filter="drop-shadow(0 4px 8px rgba(0,0,0,0.5))"/>
+    <!-- Center Knot -->
+    <ellipse cx="250" cy="180" rx="20" ry="18" fill="url(#goldRibbon)" stroke="#eab308" stroke-width="2"/>
+    <circle cx="246" cy="176" r="5" fill="#fef08a" opacity="0.8"/>
+  </g>
+</svg>

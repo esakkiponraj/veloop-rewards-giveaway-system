@@ -1,0 +1,491 @@
+.detailsPage {
+  padding-bottom: 80px;
+}
+
+.topBar {
+  background: var(--bg-surface-1);
+  border-bottom: 1px solid var(--border-subtle);
+  padding: 14px 0;
+}
+
+.topBarContainer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.backBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--font-heading);
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--text-secondary);
+  transition: color var(--transition-fast);
+}
+
+.backBtn:hover {
+  color: #ffffff;
+}
+
+.mobileBackText {
+  display: none;
+}
+
+.mainContent {
+  margin-top: 36px;
+  display: flex;
+  flex-direction: column;
+  gap: 40px;
+}
+
+.heroGrid {
+  display: grid;
+  grid-template-columns: 1fr 1.15fr;
+  gap: 48px;
+  align-items: start;
+}
+
+.imageCol {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.imageCard {
+  position: relative;
+  background: var(--bg-surface-1);
+  border: 1px solid var(--border-glass);
+  border-radius: var(--radius-xl);
+  height: 420px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  box-shadow: var(--shadow-card);
+}
+
+.ambientGlow {
+  position: absolute;
+  width: 260px;
+  height: 260px;
+  border-radius: 50%;
+  filter: blur(40px);
+  pointer-events: none;
+}
+
+.positionFloatBadge {
+  position: absolute;
+  top: 20px;
+  left: 20px;
+  background: rgba(18, 19, 30, 0.85);
+  backdrop-filter: blur(10px);
+  border: 1px solid var(--border-glass);
+  color: var(--brand-gold);
+  font-family: var(--font-heading);
+  font-size: 0.75rem;
+  font-weight: 800;
+  padding: 6px 14px;
+  border-radius: var(--radius-pill);
+}
+
+.heroPrizeImg {
+  position: relative;
+  z-index: 2;
+  max-width: 85%;
+  max-height: 85%;
+  object-fit: contain;
+}
+
+.specsRow {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+}
+
+.specPill {
+  background: var(--bg-surface-1);
+  border: 1px solid var(--border-glass);
+  border-radius: var(--radius-sm);
+  padding: 10px 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.pillGold { color: var(--brand-gold); }
+.pillCyan { color: var(--accent-cyan); }
+.pillGreen { color: #34d399; }
+
+.infoCol {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.exclusiveBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--font-heading);
+  font-size: 0.75rem;
+  font-weight: 800;
+  color: var(--brand-purple-light);
+  letter-spacing: 0.08em;
+  background: rgba(139, 92, 246, 0.15);
+  border: 1px solid rgba(139, 92, 246, 0.3);
+  padding: 4px 12px;
+  border-radius: var(--radius-pill);
+  align-self: flex-start;
+}
+
+.prizeTitle {
+  font-size: 2.5rem;
+  font-weight: 800;
+  color: #ffffff;
+  margin: 0;
+  line-height: 1.15;
+}
+
+.prizeTagline {
+  font-size: 1rem;
+  color: var(--text-secondary);
+  line-height: 1.6;
+  margin: 0;
+}
+
+.countdownCard {
+  background: var(--bg-surface-1);
+  border: 1px solid var(--border-glass);
+  border-radius: var(--radius-md);
+  padding: 14px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-self: flex-start;
+}
+
+.cdLabel {
+  font-family: var(--font-heading);
+  font-size: 0.68rem;
+  font-weight: 800;
+  color: var(--brand-purple-light);
+  letter-spacing: 0.08em;
+}
+
+/* Balance Card */
+.balanceCard {
+  background: var(--bg-surface-1);
+  border: 1px solid var(--border-glass);
+  border-radius: var(--radius-lg);
+  padding: 24px;
+  box-shadow: var(--shadow-card);
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  margin-top: 8px;
+}
+
+.balanceCardHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.bCardTitle {
+  font-family: var(--font-heading);
+  font-size: 0.75rem;
+  font-weight: 800;
+  color: var(--text-muted);
+  letter-spacing: 0.08em;
+}
+
+.currencyBadge {
+  font-family: var(--font-heading);
+  font-size: 0.72rem;
+  font-weight: 800;
+  color: var(--brand-purple-light);
+  background: rgba(139, 92, 246, 0.15);
+  border: 1px solid rgba(139, 92, 246, 0.3);
+  padding: 2px 8px;
+  border-radius: 4px;
+}
+
+.balanceNumbersGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+.bNumCol {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.bNumLabel {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+}
+
+.bNumVal {
+  font-family: var(--font-mono);
+  font-size: 1.3rem;
+  font-weight: 800;
+  color: #ffffff;
+}
+
+.bNumValGold {
+  font-family: var(--font-mono);
+  font-size: 1.3rem;
+  font-weight: 800;
+  color: var(--brand-gold);
+}
+
+.bCardDivider {
+  height: 1px;
+  background: var(--border-subtle);
+}
+
+/* States */
+.visitorState, .joinedState, .eligibleState, .insufficientState, .endedState {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.stateNotice {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  margin: 0;
+}
+
+.joinedBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: #34d399;
+  font-size: 0.95rem;
+  font-weight: 800;
+}
+
+.joinedNotice {
+  font-size: 0.82rem;
+  color: var(--text-secondary);
+  line-height: 1.5;
+  margin: 0;
+}
+
+.eligibleRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #34d399;
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+
+.checkGreen {
+  color: #34d399;
+}
+
+.insufficientRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #fda4af;
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+
+.alertRed {
+  color: #f43f5e;
+}
+
+.endedState {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #94a3b8;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+/* Specifications Table */
+.specsSection, .timelineSection {
+  background: var(--bg-surface-1);
+  border: 1px solid var(--border-glass);
+  border-radius: var(--radius-lg);
+  padding: 32px;
+}
+
+.sectionHeader {
+  font-size: 1.3rem;
+  font-weight: 800;
+  color: #ffffff;
+  margin-bottom: 20px;
+}
+
+.specsTable {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+}
+
+.specsRowItem {
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-surface-2);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  padding: 10px 14px;
+}
+
+.specLabel {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.specValue {
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: #ffffff;
+  margin-top: 2px;
+}
+
+/* Timeline */
+.timelineList {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 16px;
+}
+
+.timelineItem {
+  display: flex;
+  gap: 12px;
+  background: var(--bg-surface-2);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  padding: 16px;
+}
+
+.tlNum {
+  font-family: var(--font-mono);
+  font-size: 1.1rem;
+  font-weight: 800;
+  color: var(--brand-purple-light);
+}
+
+.timelineItem h4 {
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: #ffffff;
+  margin: 0 0 4px 0;
+}
+
+.timelineItem p {
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+  line-height: 1.4;
+  margin: 0;
+}
+
+/* Accordions */
+.accordionWrap {
+  background: var(--bg-surface-1);
+  border: 1px solid var(--border-glass);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+}
+
+.accordionToggle {
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px 24px;
+  background: transparent;
+  border: none;
+  color: #ffffff;
+  cursor: pointer;
+}
+
+.toggleTitle {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-family: var(--font-heading);
+  font-size: 1.05rem;
+  font-weight: 700;
+}
+
+.infoIcon { color: var(--accent-cyan); }
+.termsIcon { color: var(--brand-purple-light); }
+
+.chevronRotated {
+  transform: rotate(180deg);
+  color: var(--brand-purple-light);
+}
+
+.accordionContent {
+  padding: 0 24px 24px 24px;
+}
+
+.infoList {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding-left: 20px;
+  color: var(--text-secondary);
+  font-size: 0.88rem;
+  line-height: 1.5;
+}
+
+.termsParagraph {
+  font-size: 0.88rem;
+  color: var(--text-secondary);
+  line-height: 1.6;
+  margin: 0;
+}
+
+.errorWrapper {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 70vh;
+}
+
+.errorCard {
+  background: var(--bg-surface-1);
+  border: 1px solid var(--border-glass);
+  border-radius: var(--radius-lg);
+  padding: 40px;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  max-width: 440px;
+}
+
+.errorIcon { color: #f43f5e; }
+
+@media (max-width: 1024px) {
+  .heroGrid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 600px) {
+  .desktopBackText { display: none; }
+  .mobileBackText { display: inline; }
+  .prizeTitle { font-size: 1.9rem; }
+  .specsRow { grid-template-columns: 1fr; }
+  .specsTable { grid-template-columns: 1fr; }
+}

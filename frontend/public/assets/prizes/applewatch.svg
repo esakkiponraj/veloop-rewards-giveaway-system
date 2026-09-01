@@ -1,0 +1,71 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 500" width="100%" height="100%">
+  <defs>
+    <radialGradient id="watchGlow" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#3b82f6" stop-opacity="0.4"/>
+      <stop offset="60%" stop-color="#1d4ed8" stop-opacity="0.1"/>
+      <stop offset="100%" stop-color="#0a0b10" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="bandGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#1e2433"/>
+      <stop offset="50%" stop-color="#2c354a"/>
+      <stop offset="100%" stop-color="#171c28"/>
+    </linearGradient>
+    <linearGradient id="caseAlum" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#333b4f"/>
+      <stop offset="40%" stop-color="#181d27"/>
+      <stop offset="100%" stop-color="#0a0d14"/>
+    </linearGradient>
+    <linearGradient id="dialGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#090d16"/>
+      <stop offset="100%" stop-color="#020408"/>
+    </linearGradient>
+    <linearGradient id="crownGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#4b5563"/>
+      <stop offset="50%" stop-color="#1f2937"/>
+      <stop offset="100%" stop-color="#4b5563"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Dark Background & Glow -->
+  <rect width="500" height="500" fill="#0c0d14"/>
+  <circle cx="250" cy="250" r="180" fill="url(#watchGlow)"/>
+
+  <!-- Upper Band Loop -->
+  <path d="M190 70 L310 70 L295 160 L205 160 Z" fill="url(#bandGrad)" stroke="#111827" stroke-width="2"/>
+  <!-- Band Texture Lines -->
+  <line x1="205" y1="90" x2="295" y2="90" stroke="#374151" stroke-width="1.5" opacity="0.6"/>
+  <line x1="208" y1="115" x2="292" y2="115" stroke="#374151" stroke-width="1.5" opacity="0.6"/>
+  <line x1="210" y1="140" x2="290" y2="140" stroke="#374151" stroke-width="1.5" opacity="0.6"/>
+
+  <!-- Lower Band Loop -->
+  <path d="M205 340 L295 340 L310 430 L190 430 Z" fill="url(#bandGrad)" stroke="#111827" stroke-width="2"/>
+  <line x1="210" y1="360" x2="290" y2="360" stroke="#374151" stroke-width="1.5" opacity="0.6"/>
+  <line x1="208" y1="385" x2="292" y2="385" stroke="#374151" stroke-width="1.5" opacity="0.6"/>
+  <line x1="205" y1="410" x2="295" y2="410" stroke="#374151" stroke-width="1.5" opacity="0.6"/>
+
+  <!-- Digital Crown -->
+  <rect x="344" y="210" width="14" height="40" rx="4" fill="url(#crownGrad)" stroke="#6b7280" stroke-width="1"/>
+  <!-- Side Button -->
+  <rect x="344" y="265" width="8" height="35" rx="3" fill="#1f2937" stroke="#4b5563" stroke-width="1"/>
+
+  <!-- Watch Main Case (Space Black Aluminum) -->
+  <rect x="150" y="150" width="200" height="200" rx="48" fill="url(#caseAlum)" stroke="#475569" stroke-width="3" filter="drop-shadow(0 15px 30px rgba(0,0,0,0.8))"/>
+
+  <!-- Bezel & Screen -->
+  <rect x="162" y="162" width="176" height="176" rx="40" fill="url(#dialGrad)"/>
+
+  <!-- Fitness Activity Rings -->
+  <!-- Move (Red/Coral) -->
+  <circle cx="250" cy="250" r="60" fill="none" stroke="#ef4444" stroke-width="8" stroke-dasharray="320" stroke-dashoffset="60" stroke-linecap="round" opacity="0.9"/>
+  <!-- Exercise (Green) -->
+  <circle cx="250" cy="250" r="48" fill="none" stroke="#22c55e" stroke-width="8" stroke-dasharray="260" stroke-dashoffset="40" stroke-linecap="round" opacity="0.9"/>
+  <!-- Stand (Cyan) -->
+  <circle cx="250" cy="250" r="36" fill="none" stroke="#06b6d4" stroke-width="8" stroke-dasharray="200" stroke-dashoffset="30" stroke-linecap="round" opacity="0.9"/>
+
+  <!-- Time & Metrics Overlay -->
+  <text x="250" y="210" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-size="28" font-weight="700" fill="#ffffff" text-anchor="middle" letter-spacing="1">10:09</text>
+  <text x="250" y="302" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-size="12" font-weight="600" fill="#60a5fa" text-anchor="middle">72 BPM · 680 CAL</text>
+
+  <!-- Top Glass Highlight Reflection -->
+  <path d="M 175 168 Q 250 190, 325 168 Q 250 174, 175 168 Z" fill="#ffffff" opacity="0.2"/>
+</svg>

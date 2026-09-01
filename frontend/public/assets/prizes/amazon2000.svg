@@ -1,0 +1,66 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 500" width="100%" height="100%">
+  <defs>
+    <radialGradient id="goldGlow" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#f59e0b" stop-opacity="0.35"/>
+      <stop offset="60%" stop-color="#78350f" stop-opacity="0.1"/>
+      <stop offset="100%" stop-color="#0a0b10" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="cardGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#232f3e"/>
+      <stop offset="60%" stop-color="#131921"/>
+      <stop offset="100%" stop-color="#0a0c10"/>
+    </linearGradient>
+    <linearGradient id="goldAccent" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#fbbf24"/>
+      <stop offset="50%" stop-color="#f59e0b"/>
+      <stop offset="100%" stop-color="#d97706"/>
+    </linearGradient>
+    <linearGradient id="chipGold" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#fef08a"/>
+      <stop offset="50%" stop-color="#f59e0b"/>
+      <stop offset="100%" stop-color="#b45309"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Dark Background & Atmosphere -->
+  <rect width="500" height="500" fill="#0c0d14"/>
+  <circle cx="250" cy="250" r="190" fill="url(#goldGlow)"/>
+
+  <!-- Floating Gift Card Perspective -->
+  <g transform="translate(65, 120) rotate(-4)">
+    <!-- Card Shadow & Body -->
+    <rect x="0" y="0" width="370" height="230" rx="20" fill="url(#cardGrad)" stroke="url(#goldAccent)" stroke-width="2" filter="drop-shadow(0 20px 30px rgba(0,0,0,0.85))"/>
+
+    <!-- Decorative Card Geometric Accents -->
+    <path d="M 260 0 L 370 0 L 370 120 Z" fill="#f59e0b" opacity="0.12"/>
+    <circle cx="340" cy="180" r="80" fill="#f59e0b" opacity="0.05"/>
+
+    <!-- EMV Security Chip -->
+    <rect x="36" y="44" width="46" height="36" rx="6" fill="url(#chipGold)" stroke="#78350f" stroke-width="1"/>
+    <path d="M 36 62 L 82 62 M 59 44 L 59 80" stroke="#78350f" stroke-width="1" opacity="0.6"/>
+
+    <!-- Amazon Official Logo & Typography -->
+    <text x="100" y="70" font-family="'Segoe UI', Roboto, Helvetica, sans-serif" font-size="28" font-weight="800" fill="#ffffff" letter-spacing="-0.5">amazon<tspan font-size="16" fill="#f59e0b">.in</tspan></text>
+    <text x="100" y="88" font-family="'Segoe UI', Roboto, sans-serif" font-size="11" font-weight="600" fill="#9ca3af" letter-spacing="1">GIFT CARD</text>
+
+    <!-- Amazon Orange Smile Arc with Arrow -->
+    <path d="M 102 96 Q 146 114, 185 96" fill="none" stroke="#f59e0b" stroke-width="3.5" stroke-linecap="round"/>
+    <path d="M 183 91 L 189 97 L 181 100 Z" fill="#f59e0b"/>
+
+    <!-- Denomination Value Badge -->
+    <g transform="translate(36, 145)">
+      <rect x="0" y="0" width="130" height="42" rx="8" fill="#1e293b" stroke="#f59e0b" stroke-width="1.5"/>
+      <text x="65" y="27" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-size="20" font-weight="800" fill="#fbbf24" text-anchor="middle" letter-spacing="0.5">₹2,000</text>
+    </g>
+
+    <!-- VELOOP Verified Partner Pill -->
+    <g transform="translate(210, 152)">
+      <rect x="0" y="0" width="124" height="28" rx="14" fill="#0f172a" stroke="#475569" stroke-width="1"/>
+      <circle cx="14" cy="14" r="5" fill="#22c55e"/>
+      <text x="68" y="18" font-family="sans-serif" font-size="10" font-weight="700" fill="#e2e8f0" text-anchor="middle" letter-spacing="0.5">VELOOP VERIFIED</text>
+    </g>
+
+    <!-- Top Card Glass Specular Line -->
+    <path d="M 10 10 L 360 10" stroke="#ffffff" stroke-width="1.5" stroke-linecap="round" opacity="0.15"/>
+  </g>
+</svg>

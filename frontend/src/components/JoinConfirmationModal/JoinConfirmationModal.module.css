@@ -1,0 +1,216 @@
+.modalBackdrop {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(4, 5, 8, 0.85);
+  backdrop-filter: blur(8px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  z-index: 1000;
+}
+
+.modalCard {
+  background: var(--bg-surface-1);
+  border: 1px solid var(--border-glass);
+  border-radius: var(--radius-lg);
+  width: 100%;
+  max-width: 480px;
+  padding: 28px;
+  box-shadow: var(--shadow-modal);
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.closeBtn {
+  position: absolute;
+  top: 20px;
+  right: 20px;
+  background: var(--bg-surface-2);
+  border: 1px solid var(--border-glass);
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  color: var(--text-secondary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.closeBtn:hover {
+  color: #ffffff;
+  background: var(--bg-surface-3);
+}
+
+.modalHeader {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.headerBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--font-heading);
+  font-size: 0.72rem;
+  font-weight: 800;
+  color: var(--brand-purple-light);
+  letter-spacing: 0.08em;
+  background: rgba(139, 92, 246, 0.15);
+  border: 1px solid rgba(139, 92, 246, 0.3);
+  padding: 4px 10px;
+  border-radius: var(--radius-pill);
+  align-self: flex-start;
+}
+
+.modalTitle {
+  font-size: 1.4rem;
+  font-weight: 800;
+  color: #ffffff;
+  margin: 0;
+}
+
+.modalSubtitle {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  line-height: 1.4;
+  margin: 0;
+}
+
+.calcBox {
+  background: var(--bg-surface-2);
+  border: 1px solid var(--border-glass);
+  border-radius: var(--radius-md);
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.calcRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.85rem;
+}
+
+.calcLabel {
+  color: var(--text-secondary);
+}
+
+.calcLabelBold {
+  font-weight: 700;
+  color: #ffffff;
+}
+
+.calcValGroup {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.currencyPill {
+  font-size: 0.7rem;
+  font-weight: 800;
+  color: var(--brand-purple-light);
+  background: rgba(139, 92, 246, 0.2);
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+.calcVal {
+  font-family: var(--font-mono);
+  font-weight: 700;
+  color: #ffffff;
+}
+
+.calcValBold {
+  font-family: var(--font-mono);
+  font-size: 1rem;
+  font-weight: 800;
+}
+
+.positiveBal {
+  color: #34d399;
+}
+
+.negativeBal {
+  color: #f43f5e;
+}
+
+.calcDivider {
+  height: 1px;
+  background: var(--border-subtle);
+  margin: 4px 0;
+}
+
+.insufficientAlert {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: rgba(244, 63, 94, 0.15);
+  border: 1px solid rgba(244, 63, 94, 0.35);
+  padding: 10px 14px;
+  border-radius: var(--radius-sm);
+}
+
+.alertIcon {
+  color: #f43f5e;
+  flex-shrink: 0;
+}
+
+.alertText {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: #fda4af;
+  margin: 0;
+}
+
+.checkboxLabel {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.checkboxInput {
+  margin-top: 3px;
+  accent-color: var(--brand-purple);
+  width: 16px;
+  height: 16px;
+}
+
+.checkboxText {
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+  line-height: 1.4;
+}
+
+.actionRow {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-top: 8px;
+}
+
+.spinner {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}

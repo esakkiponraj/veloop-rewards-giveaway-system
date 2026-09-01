@@ -1,0 +1,40 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 500" width="100%" height="100%">
+  <defs>
+    <radialGradient id="pinkGlow" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#ec4899" stop-opacity="0.35"/>
+      <stop offset="60%" stop-color="#831843" stop-opacity="0.1"/>
+      <stop offset="100%" stop-color="#0a0b10" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="cardGrad500" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#2a1829"/>
+      <stop offset="60%" stop-color="#19101b"/>
+      <stop offset="100%" stop-color="#0c070f"/>
+    </linearGradient>
+    <linearGradient id="pinkAccent" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#f472b6"/>
+      <stop offset="50%" stop-color="#ec4899"/>
+      <stop offset="100%" stop-color="#db2777"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="500" height="500" fill="#0c0d14"/>
+  <circle cx="250" cy="250" r="190" fill="url(#pinkGlow)"/>
+
+  <g transform="translate(65, 120) rotate(-3)">
+    <rect x="0" y="0" width="370" height="230" rx="20" fill="url(#cardGrad500)" stroke="url(#pinkAccent)" stroke-width="2" filter="drop-shadow(0 20px 30px rgba(0,0,0,0.85))"/>
+
+    <text x="50" y="70" font-family="'Segoe UI', Roboto, sans-serif" font-size="28" font-weight="800" fill="#ffffff">amazon<tspan font-size="16" fill="#f472b6">.in</tspan></text>
+    <text x="50" y="88" font-family="'Segoe UI', Roboto, sans-serif" font-size="11" font-weight="600" fill="#9ca3af" letter-spacing="1">GIFT CARD</text>
+    <path d="M 52 96 Q 96 114, 135 96" fill="none" stroke="#f472b6" stroke-width="3" stroke-linecap="round"/>
+
+    <g transform="translate(46, 145)">
+      <rect x="0" y="0" width="120" height="42" rx="8" fill="#1f1322" stroke="#ec4899" stroke-width="1.5"/>
+      <text x="60" y="27" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-size="20" font-weight="800" fill="#f472b6" text-anchor="middle">₹500</text>
+    </g>
+
+    <g transform="translate(200, 152)">
+      <rect x="0" y="0" width="134" height="28" rx="14" fill="#170f1a" stroke="#831843" stroke-width="1"/>
+      <text x="67" y="18" font-family="sans-serif" font-size="10" font-weight="700" fill="#fbcfe8" text-anchor="middle">DIGITAL VOUCHER</text>
+    </g>
+  </g>
+</svg>

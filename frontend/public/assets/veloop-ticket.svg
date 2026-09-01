@@ -1,0 +1,61 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 500" width="100%" height="100%">
+  <defs>
+    <radialGradient id="ticketGlow" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#fbbf24" stop-opacity="0.4"/>
+      <stop offset="70%" stop-color="#78350f" stop-opacity="0.05"/>
+      <stop offset="100%" stop-color="#000000" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="ticketGold" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#fef08a"/>
+      <stop offset="40%" stop-color="#f59e0b"/>
+      <stop offset="100%" stop-color="#b45309"/>
+    </linearGradient>
+    <linearGradient id="ticketDark" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#1f2438"/>
+      <stop offset="100%" stop-color="#0f111a"/>
+    </linearGradient>
+    <linearGradient id="handSkin" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#fbcfe8"/>
+      <stop offset="50%" stop-color="#f472b6"/>
+      <stop offset="100%" stop-color="#db2777"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="500" height="500" fill="transparent"/>
+  <circle cx="270" cy="230" r="190" fill="url(#ticketGlow)"/>
+
+  <!-- Golden Ticket -->
+  <g transform="translate(90, 80) rotate(-12)">
+    <!-- Ticket Body Base -->
+    <path d="M 20 0 L 320 0 C 330 0 340 10 340 20 L 340 70 C 325 70 315 85 315 95 C 315 105 325 120 340 120 L 340 170 C 340 180 330 190 320 190 L 20 190 C 10 190 0 180 0 170 L 0 120 C 15 120 25 105 25 95 C 25 85 15 70 0 70 L 0 20 C 0 10 10 0 20 0 Z" fill="url(#ticketDark)" stroke="url(#ticketGold)" stroke-width="3" filter="drop-shadow(0 15px 30px rgba(0,0,0,0.8))"/>
+
+    <!-- Right Golden Cutout Section -->
+    <path d="M 230 0 L 320 0 C 330 0 340 10 340 20 L 340 70 C 325 70 315 85 315 95 C 315 105 325 120 340 120 L 340 170 C 340 180 330 190 320 190 L 230 190 Q 210 95, 230 0 Z" fill="url(#ticketGold)"/>
+
+    <!-- Star in Gold Section -->
+    <polygon points="280,60 286,76 302,76 289,86 294,102 280,92 266,102 271,86 258,76 274,76" fill="#111827"/>
+
+    <!-- Left Stars Row -->
+    <polygon points="60,40 63,48 71,48 65,53 67,61 60,56 53,61 55,53 49,48 57,48" fill="#fbbf24"/>
+    <polygon points="85,35 88,43 96,43 90,48 92,56 85,51 78,56 80,48 74,43 82,43" fill="#fbbf24"/>
+    <polygon points="110,40 113,48 121,48 115,53 117,61 110,56 103,61 105,53 99,48 107,48" fill="#fbbf24"/>
+
+    <!-- GIVEAWAY Golden Typography -->
+    <text x="50" y="105" font-family="'Segoe UI', Roboto, sans-serif" font-size="26" font-weight="900" fill="#facc15" letter-spacing="2">GIVEAWAY</text>
+    <line x1="50" y1="120" x2="190" y2="120" stroke="#facc15" stroke-width="1.5" stroke-dasharray="3,3"/>
+    <text x="50" y="145" font-family="sans-serif" font-size="11" font-weight="700" fill="#93c5fd" letter-spacing="1">VELOOP REWARDS PASS</text>
+  </g>
+
+  <!-- Stylized Hand Holding Ticket -->
+  <g transform="translate(180, 240)">
+    <!-- Arm Cuff -->
+    <path d="M 0 200 L 70 120 L 140 180 L 70 260 Z" fill="#1e1b4b" stroke="#3b82f6" stroke-width="2"/>
+    <!-- Palm / Fingers Holding -->
+    <path d="M 50 140 C 60 100, 90 70, 120 80 C 140 90, 130 130, 110 160 Z" fill="#fbcfe8"/>
+    <ellipse cx="105" cy="90" rx="14" ry="18" fill="#f472b6" transform="rotate(-20 105 90)"/>
+    <ellipse cx="120" cy="115" rx="13" ry="16" fill="#f472b6" transform="rotate(-15 120 115)"/>
+    <ellipse cx="128" cy="145" rx="12" ry="15" fill="#f472b6" transform="rotate(-10 128 145)"/>
+    <!-- Thumb holding edge -->
+    <ellipse cx="80" cy="100" rx="14" ry="22" fill="#fda4af" transform="rotate(-40 80 100)"/>
+  </g>
+</svg>

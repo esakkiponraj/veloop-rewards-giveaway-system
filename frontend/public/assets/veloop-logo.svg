@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 60" width="100%" height="100%">
+  <defs>
+    <linearGradient id="vrGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#f59e0b"/>
+      <stop offset="50%" stop-color="#ec4899"/>
+      <stop offset="100%" stop-color="#8b5cf6"/>
+    </linearGradient>
+  </defs>
+  
+  <!-- VR Monogram Icon -->
+  <g transform="translate(10, 8)">
+    <path d="M 0 5 L 14 38 L 28 5 L 38 5 L 20 44 L 8 44 L 0 5 Z" fill="url(#vrGrad)"/>
+    <path d="M 28 5 L 42 5 C 48 5 52 9 52 16 C 52 22 47 26 40 26 L 34 26 L 46 44 L 34 44 L 24 28 L 28 28 C 34 28 38 26 38 18 C 38 13 34 11 30 11 L 28 11 Z" fill="url(#vrGrad)"/>
+  </g>
+
+  <!-- VELOOP REWARDS Typography -->
+  <text x="75" y="32" font-family="'Outfit', 'Plus Jakarta Sans', -apple-system, sans-serif" font-size="22" font-weight="900" fill="#ffffff" letter-spacing="1">VELOOP</text>
+  <text x="76" y="47" font-family="'Outfit', sans-serif" font-size="10" font-weight="700" fill="#a78bfa" letter-spacing="3">REWARDS</text>
+</svg>

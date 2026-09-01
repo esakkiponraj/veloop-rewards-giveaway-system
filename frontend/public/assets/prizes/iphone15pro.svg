@@ -1,0 +1,106 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 500" width="100%" height="100%">
+  <defs>
+    <radialGradient id="podiumGlow" cx="50%" cy="80%" r="50%">
+      <stop offset="0%" stop-color="#8b5cf6" stop-opacity="0.45"/>
+      <stop offset="60%" stop-color="#4c1d95" stop-opacity="0.15"/>
+      <stop offset="100%" stop-color="#0a0b10" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="bodyTitanium" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#2d2b38"/>
+      <stop offset="50%" stop-color="#181722"/>
+      <stop offset="100%" stop-color="#0e0d16"/>
+    </linearGradient>
+    <linearGradient id="rimTitanium" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#9382b6"/>
+      <stop offset="30%" stop-color="#443c5e"/>
+      <stop offset="70%" stop-color="#262137"/>
+      <stop offset="100%" stop-color="#5a4c7a"/>
+    </linearGradient>
+    <linearGradient id="screenGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#140f2d"/>
+      <stop offset="40%" stop-color="#241242"/>
+      <stop offset="70%" stop-color="#180b2a"/>
+      <stop offset="100%" stop-color="#080410"/>
+    </linearGradient>
+    <linearGradient id="screenWave" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#a855f7" stop-opacity="0.8"/>
+      <stop offset="50%" stop-color="#ec4899" stop-opacity="0.6"/>
+      <stop offset="100%" stop-color="#3b82f6" stop-opacity="0.8"/>
+    </linearGradient>
+    <linearGradient id="cameraPlate" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#2a2538"/>
+      <stop offset="100%" stop-color="#161320"/>
+    </linearGradient>
+    <radialGradient id="lensReflect" cx="30%" cy="30%" r="70%">
+      <stop offset="0%" stop-color="#38bdf8" stop-opacity="0.8"/>
+      <stop offset="40%" stop-color="#1e1b4b" stop-opacity="0.9"/>
+      <stop offset="100%" stop-color="#030712"/>
+    </radialGradient>
+    <filter id="glowFilter" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="12" result="blur"/>
+      <feComposite in="SourceGraphic" in2="blur" operator="over"/>
+    </filter>
+  </defs>
+
+  <!-- Background Environment Glow -->
+  <rect width="500" height="500" fill="#0c0d14"/>
+  <ellipse cx="250" cy="400" rx="200" ry="60" fill="url(#podiumGlow)"/>
+
+  <!-- Subtle Floating Sparkles -->
+  <circle cx="90" cy="140" r="2.5" fill="#c084fc" opacity="0.8"/>
+  <circle cx="420" cy="180" r="2" fill="#fbbf24" opacity="0.7"/>
+  <circle cx="390" cy="360" r="3" fill="#a855f7" opacity="0.6"/>
+  <circle cx="110" cy="380" r="1.5" fill="#60a5fa" opacity="0.8"/>
+
+  <!-- BACK DEVICE (iPhone Rear angle) -->
+  <g transform="translate(140, 70) rotate(-6)">
+    <rect x="0" y="0" width="170" height="340" rx="34" fill="url(#bodyTitanium)" stroke="url(#rimTitanium)" stroke-width="4"/>
+    <!-- Camera Plateau -->
+    <rect x="14" y="14" width="76" height="80" rx="20" fill="url(#cameraPlate)" stroke="#443c5e" stroke-width="1.5"/>
+    <!-- Lens 1 (Main) -->
+    <circle cx="36" cy="38" r="15" fill="#111" stroke="#5b4f7a" stroke-width="2"/>
+    <circle cx="36" cy="38" r="11" fill="url(#lensReflect)"/>
+    <circle cx="34" cy="36" r="3" fill="#fff" opacity="0.6"/>
+    <!-- Lens 2 (Ultra Wide) -->
+    <circle cx="68" cy="54" r="15" fill="#111" stroke="#5b4f7a" stroke-width="2"/>
+    <circle cx="68" cy="54" r="11" fill="url(#lensReflect)"/>
+    <circle cx="66" cy="52" r="3" fill="#fff" opacity="0.6"/>
+    <!-- Lens 3 (Telephoto) -->
+    <circle cx="36" cy="72" r="15" fill="#111" stroke="#5b4f7a" stroke-width="2"/>
+    <circle cx="36" cy="72" r="11" fill="url(#lensReflect)"/>
+    <circle cx="34" cy="70" r="3" fill="#fff" opacity="0.6"/>
+    <!-- Flash & LiDAR -->
+    <circle cx="68" cy="28" r="5" fill="#fef08a" opacity="0.9"/>
+    <circle cx="68" cy="80" r="4" fill="#1f2937"/>
+    <!-- Apple Logo outline -->
+    <path d="M85 165 C85 160 88 156 93 156 C97 156 99 158 102 158 C105 158 107 156 111 156 C116 156 119 160 119 165 C119 173 111 184 102 184 C93 184 85 173 85 165 Z" fill="#6b7280" opacity="0.3"/>
+  </g>
+
+  <!-- FRONT DEVICE (iPhone Display) -->
+  <g transform="translate(195, 80) rotate(5)">
+    <!-- Outer Titanium Rim -->
+    <rect x="0" y="0" width="174" height="346" rx="34" fill="url(#bodyTitanium)" stroke="url(#rimTitanium)" stroke-width="3.5" filter="drop-shadow(0 15px 25px rgba(0,0,0,0.7))"/>
+    
+    <!-- Screen Glass -->
+    <rect x="6" y="6" width="162" height="334" rx="28" fill="url(#screenGrad)"/>
+
+    <!-- Screen Wallpaper Graphic -->
+    <path d="M6 140 Q 80 60, 168 180 L 168 340 L 6 340 Z" fill="url(#screenWave)" opacity="0.4"/>
+    <path d="M6 220 Q 90 140, 168 260 L 168 340 L 6 340 Z" fill="#8b5cf6" opacity="0.35"/>
+
+    <!-- Dynamic Island -->
+    <rect x="62" y="16" width="50" height="14" rx="7" fill="#000"/>
+    <circle cx="102" cy="23" r="3" fill="#1e1b4b"/>
+    <circle cx="74" cy="23" r="2.5" fill="#0284c7" opacity="0.8"/>
+
+    <!-- UI Elements -->
+    <text x="87" y="70" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-size="28" font-weight="600" fill="#ffffff" text-anchor="middle">09:41</text>
+    <text x="87" y="90" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-size="10" font-weight="500" fill="#a78bfa" text-anchor="middle">Tuesday, August 25</text>
+
+    <!-- Bottom Home Indicator Bar -->
+    <rect x="52" y="326" width="70" height="4" rx="2" fill="#ffffff" opacity="0.7"/>
+  </g>
+
+  <!-- Shiny Specular Highlight -->
+  <path d="M 210 90 L 225 90 L 205 410 L 195 410 Z" fill="#ffffff" opacity="0.08"/>
+</svg>
