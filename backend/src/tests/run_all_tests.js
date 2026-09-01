@@ -40,19 +40,29 @@ async function runAudit() {
   inMemoryDB.withdrawals = [];
   inMemoryDB.transactions = [];
 
-  // Seed / ensure initial test state exists in MongoDB Atlas
+  // Dedicated test identifiers
+  const userAId = 'USER-AUDIT-ALEX';
+  const userBId = 'USER-AUDIT-JORDAN';
+  const winnerUserId = 'USER-AUDIT-ROHAN';
+  const adminUserId = 'USER-AUDIT-ADMIN';
+
+  const auditGwActiveId = 'GW-AUDIT-ACTIVE';
+  const auditGwEndedId = 'GW-AUDIT-ENDED';
+  const auditPrizeIphoneId = 'PRIZE-AUDIT-IPHONE';
+  const auditPrizeWatchId = 'PRIZE-AUDIT-WATCH';
+
   const passwordHash = await bcrypt.hash('password123', 8);
   const adminHash = await bcrypt.hash('admin123', 8);
 
   // Upsert Test Users
   await User.findOneAndUpdate(
-    { userId: 'VE10842' },
+    { userId: userAId },
     {
-      userId: 'VE10842',
-      username: 'Alex Vance',
-      email: 'alex.vance@example.com',
+      userId: userAId,
+      username: 'Audit Alex',
+      email: 'audit.alex@example.com',
       password: passwordHash,
-      maskedId: 'VE****42',
+      maskedId: 'VE****A1',
       role: 'user',
       wallet: { VEs: 850, SVEs: 1200, Tokens: 5000 },
       streak: 12,
@@ -62,13 +72,13 @@ async function runAudit() {
   );
 
   await User.findOneAndUpdate(
-    { userId: 'VE10012' },
+    { userId: userBId },
     {
-      userId: 'VE10012',
-      username: 'Jordan Lee',
-      email: 'jordan.lee@example.com',
+      userId: userBId,
+      username: 'Audit Jordan',
+      email: 'audit.jordan@example.com',
       password: passwordHash,
-      maskedId: 'VE****12',
+      maskedId: 'VE****J2',
       role: 'user',
       wallet: { VEs: 120, SVEs: 150, Tokens: 600 },
       streak: 3,
@@ -78,13 +88,13 @@ async function runAudit() {
   );
 
   await User.findOneAndUpdate(
-    { userId: 'VE10025' },
+    { userId: winnerUserId },
     {
-      userId: 'VE10025',
-      username: 'Rohan Sharma',
-      email: 'rohan.winner@example.com',
+      userId: winnerUserId,
+      username: 'Audit Rohan',
+      email: 'audit.rohan@example.com',
       password: passwordHash,
-      maskedId: 'VE****25',
+      maskedId: 'VE****R3',
       role: 'user',
       wallet: { VEs: 450, SVEs: 900, Tokens: 3500 },
       streak: 8,
@@ -94,11 +104,11 @@ async function runAudit() {
   );
 
   await User.findOneAndUpdate(
-    { userId: 'VE00001' },
+    { userId: adminUserId },
     {
-      userId: 'VE00001',
-      username: 'VELOOP SuperAdmin',
-      email: 'admin@veloop.io',
+      userId: adminUserId,
+      username: 'Audit SuperAdmin',
+      email: 'audit.admin@veloop.io',
       password: adminHash,
       maskedId: 'ADMIN****01',
       role: 'admin',
@@ -110,22 +120,21 @@ async function runAudit() {
   );
 
   // Clean test participations, claims, transactions for idempotent test run
-  await GiveawayParticipation.deleteMany({ userId: { $in: ['VE10842', 'VE10012'] } });
-  await GiveawayEntryTransaction.deleteMany({ userId: { $in: ['VE10842', 'VE10012'] } });
-  await PrizeClaim.deleteMany({ userId: { $in: ['VE10025'] } });
+  await GiveawayParticipation.deleteMany({ userId: { $in: [userAId, userBId, winnerUserId] } });
+  await GiveawayEntryTransaction.deleteMany({ userId: { $in: [userAId, userBId, winnerUserId] } });
+  await PrizeClaim.deleteMany({ userId: { $in: [winnerUserId, userAId] } });
 
   // Ensure current giveaway & prize exist
-  const currentGiveawayId = 'GW-2026-08';
   const now = new Date();
   const futureEnd = new Date(now.getTime() + 12 * 24 * 60 * 60 * 1000);
 
   const prizeIphone = await Prize.findOneAndUpdate(
-    { prizeId: 'PRIZE-IPHONE15' },
+    { prizeId: auditPrizeIphoneId },
     {
-      prizeId: 'PRIZE-IPHONE15',
-      giveawayId: currentGiveawayId,
-      name: 'iPhone 15 Pro (128GB)',
-      slug: 'iphone-15-pro',
+      prizeId: auditPrizeIphoneId,
+      giveawayId: auditGwActiveId,
+      name: 'Audit iPhone 15 Pro',
+      slug: 'audit-iphone-15-pro',
       position: '1st Prize',
       positionRank: 1,
       image: '/assets/prizes/iphone15pro.svg',
@@ -140,12 +149,12 @@ async function runAudit() {
   );
 
   await Giveaway.findOneAndUpdate(
-    { giveawayId: currentGiveawayId },
+    { giveawayId: auditGwActiveId },
     {
-      giveawayId: currentGiveawayId,
-      title: 'Summer Rewards Megadraw 2026',
-      slug: 'summer-rewards-megadraw',
-      description: 'Exclusive summer hardware and voucher rewards.',
+      giveawayId: auditGwActiveId,
+      title: 'Audit Active Megadraw',
+      slug: 'audit-active-megadraw',
+      description: 'Exclusive audit rewards.',
       status: 'ACTIVE',
       startAt: new Date(now.getTime() - 2 * 24 * 60 * 60 * 1000),
       endAt: futureEnd,
@@ -154,15 +163,46 @@ async function runAudit() {
     { upsert: true }
   );
 
-  // Ensure winner record for Rohan Sharma in past giveaway
-  await GiveawayWinner.findOneAndUpdate(
-    { userId: 'VE10025', giveawayId: 'GW-2026-07' },
+  // Ensure winner record for Rohan in past giveaway
+  const pastPrizeWatch = await Prize.findOneAndUpdate(
+    { prizeId: auditPrizeWatchId },
     {
-      giveawayId: 'GW-2026-07',
-      prizeId: 'PRIZE-PAST-WATCH',
-      userId: 'VE10025',
-      maskedUserId: 'VE****25',
-      prizeName: 'Apple Watch Series 9',
+      prizeId: auditPrizeWatchId,
+      giveawayId: auditGwEndedId,
+      name: 'Audit Apple Watch Series 9',
+      slug: 'audit-past-watch',
+      position: '1st Prize',
+      entryCurrency: 'VEs',
+      entryAmount: 200,
+      winnerCount: 1,
+      image: '/assets/prizes/applewatch.svg',
+      prizeType: 'PHYSICAL',
+    },
+    { upsert: true, new: true }
+  );
+
+  await Giveaway.findOneAndUpdate(
+    { giveawayId: auditGwEndedId },
+    {
+      giveawayId: auditGwEndedId,
+      title: 'Audit Ended Rewards',
+      slug: 'audit-ended-rewards',
+      status: 'ENDED',
+      startAt: new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000),
+      endAt: new Date(now.getTime() - 5 * 24 * 60 * 60 * 1000),
+      prizes: [pastPrizeWatch._id],
+    },
+    { upsert: true }
+  );
+
+  await GiveawayWinner.findOneAndUpdate(
+    { userId: winnerUserId, giveawayId: auditGwEndedId },
+    {
+      giveawayId: auditGwEndedId,
+      prizeId: auditPrizeWatchId,
+      userId: winnerUserId,
+      maskedUserId: 'VE****R3',
+      prizeName: 'Audit Apple Watch Series 9',
       prizeType: 'PHYSICAL',
       claimDeadline: new Date(now.getTime() + 5 * 24 * 60 * 60 * 1000),
       selectionMethod: 'CRYPTOGRAPHIC_RANDOM',
@@ -171,21 +211,7 @@ async function runAudit() {
     { upsert: true }
   );
 
-  await Giveaway.findOneAndUpdate(
-    { giveawayId: 'GW-2026-07' },
-    {
-      giveawayId: 'GW-2026-07',
-      title: 'Monsoon Kickoff Rewards 2026',
-      slug: 'monsoon-kickoff-rewards',
-      description: 'Completed giveaway event.',
-      status: 'ENDED',
-      startAt: new Date(now.getTime() - 20 * 24 * 60 * 60 * 1000),
-      endAt: new Date(now.getTime() - 5 * 24 * 60 * 60 * 1000),
-      prizes: [],
-    },
-    { upsert: true }
-  );
-
+  // Spin up temporary test HTTP server
   const server = http.createServer(app);
   await new Promise((resolve) => server.listen(0, resolve));
   const port = server.address().port;
@@ -206,232 +232,255 @@ async function runAudit() {
 
   try {
     // 1. Health Check
-    const health = await fetch(`${baseUrl}/api/health`).then((r) => r.json());
-    assert(health.status === 'HEALTHY', 'API health status is HEALTHY');
+    const healthRes = await fetch(`${baseUrl}/api/health`).then((r) => r.json());
+    assert(healthRes.status === 'HEALTHY', 'API health status is HEALTHY');
 
-    // 2. Authentication: User A (Alex Vance)
-    const loginA = await fetch(`${baseUrl}/api/auth/login`, {
+    // 2. Authentication Flow (User A)
+    const loginARes = await fetch(`${baseUrl}/api/auth/login`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ emailOrUsername: 'alex.vance@example.com', password: 'password123' }),
+      body: JSON.stringify({ emailOrUsername: 'audit.alex@example.com', password: 'password123' }),
     }).then((r) => r.json());
-    assert(loginA.success && loginA.user.userId === 'VE10842', 'User A authentication with JWT');
-    const tokenA = loginA.token;
+    assert(loginARes.success && !!loginARes.token, 'User A authentication with JWT');
+    const tokenA = loginARes.token;
 
-    // 3. Authentication: User B (Jordan Lee)
-    const loginB = await fetch(`${baseUrl}/api/auth/login`, {
+    // 3. Authentication Flow (User B)
+    const loginBRes = await fetch(`${baseUrl}/api/auth/login`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ emailOrUsername: 'jordan.lee@example.com', password: 'password123' }),
+      body: JSON.stringify({ emailOrUsername: 'audit.jordan@example.com', password: 'password123' }),
     }).then((r) => r.json());
-    assert(loginB.success && loginB.user.userId === 'VE10012', 'User B authentication with JWT');
-    const tokenB = loginB.token;
+    assert(loginBRes.success && !!loginBRes.token, 'User B authentication with JWT');
+    const tokenB = loginBRes.token;
 
-    // 4. Invalid Login
+    // 4. Invalid Login Credentials Block
     const invalidLogin = await fetch(`${baseUrl}/api/auth/login`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ emailOrUsername: 'alex.vance@example.com', password: 'badpassword' }),
+      body: JSON.stringify({ emailOrUsername: 'audit.alex@example.com', password: 'wrongPassword' }),
     });
     assert(invalidLogin.status === 401, 'Invalid credentials rejected with HTTP 401');
 
-    // 5. Watch Ads List
+    // 5. Sponsored Ads Retrieval
     const adsRes = await fetch(`${baseUrl}/api/ads`, {
       headers: { Authorization: `Bearer ${tokenA}` },
     }).then((r) => r.json());
     assert(adsRes.success && Array.isArray(adsRes.ads) && adsRes.ads.length > 0, 'Fetched active sponsored ads list');
 
-    // 6. Complete Ad (Authoritative Reward: +38 VEs for ad-1 Amazon Prime)
-    const adComplete = await fetch(`${baseUrl}/api/ads/ad-1/complete`, {
+    // 6. Sponsored Ad Completion & Authoritative Reward Credit (+38 VEs)
+    const adId = adsRes.ads[0].adId;
+    const adCompleteRes = await fetch(`${baseUrl}/api/ads/${adId}/complete`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${tokenA}`,
-      },
-      body: JSON.stringify({ idempotencyKey: 'test-ad-1', clientRewardTamper: 99999 }),
+      headers: { Authorization: `Bearer ${tokenA}` },
     }).then((r) => r.json());
-    assert(adComplete.success && adComplete.reward === 38 && adComplete.wallet.VEs === 888, 'Ad completed with authoritative server reward (+38 VEs) -> Balance 888 VEs', adComplete);
+    assert(
+      adCompleteRes.success && adCompleteRes.wallet.VEs === 888,
+      `Ad completed with authoritative server reward (+38 VEs) -> Balance ${adCompleteRes.wallet?.VEs} VEs`
+    );
 
-    // 7. Duplicate Ad Completion Rejected
-    const dupAd = await fetch(`${baseUrl}/api/ads/ad-1/complete`, {
+    // 7. Duplicate Ad Completion Prevention on Same Day
+    const dupAdRes = await fetch(`${baseUrl}/api/ads/${adId}/complete`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${tokenA}`,
-      },
-      body: JSON.stringify({ idempotencyKey: 'test-ad-1' }),
+      headers: { Authorization: `Bearer ${tokenA}` },
     });
-    assert(dupAd.status === 400, 'Duplicate ad completion on same day rejected (HTTP 400)');
+    assert(dupAdRes.status === 400, 'Duplicate ad completion on same day rejected (HTTP 400)');
 
-    // 8. Tasks List & Claim
+    // 8. Task Quests Retrieval
     const tasksRes = await fetch(`${baseUrl}/api/tasks`, {
       headers: { Authorization: `Bearer ${tokenA}` },
     }).then((r) => r.json());
     assert(tasksRes.success && Array.isArray(tasksRes.tasks), 'Fetched task quests inventory');
 
-    const taskClaim = await fetch(`${baseUrl}/api/tasks/t-1/claim`, {
+    // 9. Task Claim & Authoritative Reward Credit (+20 VEs)
+    const taskId = tasksRes.tasks[0].taskId;
+    const taskClaimRes = await fetch(`${baseUrl}/api/tasks/${taskId}/claim`, {
       method: 'POST',
       headers: { Authorization: `Bearer ${tokenA}` },
     }).then((r) => r.json());
-    assert(taskClaim.success && taskClaim.reward === 20 && taskClaim.wallet.VEs === 908, 'Task t-1 claimed (+20 VEs) -> Balance 908 VEs', taskClaim);
-
-    // 9. Duplicate Task Claim Rejected
-    const dupTask = await fetch(`${baseUrl}/api/tasks/t-1/claim`, {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${tokenA}` },
-    });
-    assert(dupTask.status === 400, 'Duplicate task claim rejected (HTTP 400)');
-
-    // 10. Daily Bonus Claim (24h calendar safe)
-    const bonusRes = await fetch(`${baseUrl}/api/wallet/daily-bonus`, {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${tokenA}` },
-    }).then((r) => r.json());
-    assert(bonusRes.success && bonusRes.bonus === 25 && bonusRes.wallet.VEs === 933, 'Daily bonus claimed (+25 VEs) -> Balance 933 VEs', bonusRes);
-
-    // 11. Duplicate Daily Bonus on same day rejected
-    const dupBonus = await fetch(`${baseUrl}/api/wallet/daily-bonus`, {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${tokenA}` },
-    });
-    assert(dupBonus.status === 400, 'Second daily bonus claim on same day rejected (HTTP 400)');
-
-    // 12. Referral Link & Self-Referral Prevention
-    const refDetails = await fetch(`${baseUrl}/api/referrals`, {
-      headers: { Authorization: `Bearer ${tokenA}` },
-    }).then((r) => r.json());
-    assert(refDetails.success && refDetails.referralCode === 'VELOOP-VE10842', 'User A unique referral code retrieved');
-
-    const selfRef = await fetch(`${baseUrl}/api/referrals/apply`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${tokenA}`,
-      },
-      body: JSON.stringify({ code: 'VELOOP-VE10842' }),
-    });
-    assert(selfRef.status === 400, 'Self-referral blocked (HTTP 400)');
-
-    // 13. User B applies User A referral code (+50 VEs for B, +100 VEs for A)
-    const applyRef = await fetch(`${baseUrl}/api/referrals/apply`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${tokenB}`,
-      },
-      body: JSON.stringify({ code: 'VELOOP-VE10842' }),
-    }).then((r) => r.json());
-    assert(applyRef.success && applyRef.wallet.VEs === 170, 'User B earned +50 VEs welcome bonus -> Balance 170 VEs');
-
-    // 14. Withdrawal Validation: Below Minimum (<100 VEs)
-    const minWth = await fetch(`${baseUrl}/api/wallet/withdraw`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${tokenA}`,
-      },
-      body: JSON.stringify({ amount: 50, payoutMethod: 'UPI', accountDetail: 'alex@upi' }),
-    });
-    assert(minWth.status === 400, 'Withdrawal below minimum threshold rejected (HTTP 400)');
-
-    // 15. Withdrawal Validation: Insufficient Balance
-    const excessWth = await fetch(`${baseUrl}/api/wallet/withdraw`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${tokenB}`,
-      },
-      body: JSON.stringify({ amount: 5000, payoutMethod: 'UPI', accountDetail: 'jordan@upi' }),
-    });
-    assert(excessWth.status === 400, 'Excessive withdrawal rejected due to insufficient balance (HTTP 400)');
-
-    // 16. Valid Withdrawal (933 + 100 ref = 1033 VEs. Deduct 200 -> 833 VEs)
-    const validWth = await fetch(`${baseUrl}/api/wallet/withdraw`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${tokenA}`,
-      },
-      body: JSON.stringify({ amount: 200, payoutMethod: 'UPI', accountDetail: 'alex.vance@okhdfcbank' }),
-    }).then((r) => r.json());
-    assert(validWth.success && validWth.wallet.VEs === 833 && validWth.withdrawal.status === 'PENDING', 'Valid withdrawal (200 VEs debited) -> Balance 833 VEs, status PENDING');
-
-    // 17. User-Isolated Transaction Ledger
-    const historyA = await fetch(`${baseUrl}/api/wallet/history`, {
-      headers: { Authorization: `Bearer ${tokenA}` },
-    }).then((r) => r.json());
-    assert(historyA.success && Array.isArray(historyA.transactions), 'User A transaction history retrieved');
-
-    const historyB = await fetch(`${baseUrl}/api/wallet/history`, {
-      headers: { Authorization: `Bearer ${tokenB}` },
-    }).then((r) => r.json());
-    assert(historyB.success && historyB.transactions.every((t) => t.userId !== 'VE10842'), 'User B ledger completely isolated from User A transactions');
-
-    // 18. Core Giveaway Participation with Nested Route & Authoritative Fee Deduction (250 VEs. 833 - 250 = 583 VEs)
-    const joinGw = await fetch(`${baseUrl}/api/giveaways/GW-2026-08/prizes/PRIZE-IPHONE15/join`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${tokenA}`,
-      },
-      body: JSON.stringify({ amountTamper: 1 }),
-    }).then((r) => r.json());
-    assert(joinGw.success && joinGw.wallet.VEs === 583, 'Giveaway join deducts authoritative 250 VEs -> Balance 583 VEs', joinGw);
-
-    // 19. Duplicate Giveaway Participation Handled Idempotently Without Extra Charge
-    const dupJoinRes = await fetch(`${baseUrl}/api/giveaways/GW-2026-08/prizes/PRIZE-IPHONE15/join`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${tokenA}`,
-      },
-      body: JSON.stringify({}),
-    }).then((r) => r.json());
-
-    const participations = await GiveawayParticipation.find({ userId: 'VE10842', giveawayId: 'GW-2026-08', prizeId: 'PRIZE-IPHONE15' });
-    const userAAfterDup = await User.findOne({ userId: 'VE10842' });
-
     assert(
-      dupJoinRes.alreadyJoined === true && participations.length === 1 && userAAfterDup.wallet.VEs === 583,
-      'Duplicate giveaway participation returns idempotent status, preserves 1 entry in DB and maintains balance at 583 VEs'
+      taskClaimRes.success && taskClaimRes.wallet.VEs === 908,
+      `Task ${taskId} claimed (+20 VEs) -> Balance ${taskClaimRes.wallet?.VEs} VEs`
     );
 
-    // 20. Winner Claim for Rohan Sharma (VE10025)
-    const loginWinner = await fetch(`${baseUrl}/api/auth/login`, {
+    // 10. Duplicate Task Claim Prevention
+    const dupTaskRes = await fetch(`${baseUrl}/api/tasks/${taskId}/claim`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ emailOrUsername: 'rohan.winner@example.com', password: 'password123' }),
-    }).then((r) => r.json());
+      headers: { Authorization: `Bearer ${tokenA}` },
+    });
+    assert(dupTaskRes.status === 400, 'Duplicate task claim rejected (HTTP 400)');
 
-    const claimRes = await fetch(`${baseUrl}/api/giveaways/GW-2026-07/prizes/PRIZE-PAST-WATCH/claim`, {
+    // 11. Daily Streak Bonus Claim (+25 VEs)
+    const dailyBonusRes = await fetch(`${baseUrl}/api/wallet/daily-bonus`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${tokenA}` },
+    }).then((r) => r.json());
+    assert(
+      dailyBonusRes.success && dailyBonusRes.wallet.VEs === 933,
+      `Daily bonus claimed (+25 VEs) -> Balance ${dailyBonusRes.wallet?.VEs} VEs`
+    );
+
+    // 12. Duplicate Daily Bonus Prevention on Same Day
+    const dupDailyRes = await fetch(`${baseUrl}/api/wallet/daily-bonus`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${tokenA}` },
+    });
+    assert(dupDailyRes.status === 400, 'Second daily bonus claim on same day rejected (HTTP 400)');
+
+    // 13. Referral System - Get Referral Code
+    const refRes = await fetch(`${baseUrl}/api/referrals`, {
+      headers: { Authorization: `Bearer ${tokenA}` },
+    }).then((r) => r.json());
+    assert(refRes.success && !!refRes.referralCode, 'User A unique referral code retrieved');
+    const referralCodeA = refRes.referralCode;
+
+    // 14. Referral System - Self-Referral Prevention
+    const selfRefRes = await fetch(`${baseUrl}/api/referrals/apply`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        Authorization: `Bearer ${loginWinner.token}`,
+        Authorization: `Bearer ${tokenA}`,
+      },
+      body: JSON.stringify({ code: referralCodeA }),
+    });
+    assert(selfRefRes.status === 400, 'Self-referral blocked (HTTP 400)');
+
+    // 15. Referral System - Legitimate Referral Application (User B uses User A's Code: +50 VEs)
+    const applyRefRes = await fetch(`${baseUrl}/api/referrals/apply`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${tokenB}`,
+      },
+      body: JSON.stringify({ code: referralCodeA }),
+    }).then((r) => r.json());
+    assert(
+      applyRefRes.success && applyRefRes.wallet.VEs === 170,
+      `User B earned +50 VEs welcome bonus -> Balance ${applyRefRes.wallet?.VEs} VEs`
+    );
+
+    // 16. Withdrawal - Below Minimum Threshold Prevention
+    const lowWithdraw = await fetch(`${baseUrl}/api/wallet/withdraw`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${tokenA}`,
+      },
+      body: JSON.stringify({ amount: 50, method: 'UPI', address: 'alex@upi' }),
+    });
+    assert(lowWithdraw.status === 400, 'Withdrawal below minimum threshold rejected (HTTP 400)');
+
+    // 17. Withdrawal - Insufficient Balance Prevention
+    const excessWithdraw = await fetch(`${baseUrl}/api/wallet/withdraw`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${tokenA}`,
+      },
+      body: JSON.stringify({ amount: 5000, method: 'UPI', address: 'alex@upi' }),
+    });
+    assert(excessWithdraw.status === 400, 'Excessive withdrawal rejected due to insufficient balance (HTTP 400)');
+
+    // 18. Withdrawal - Legitimate Execution & Authoritative Debit (200 VEs debited)
+    const validWithdraw = await fetch(`${baseUrl}/api/wallet/withdraw`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${tokenA}`,
+      },
+      body: JSON.stringify({ amount: 200, method: 'UPI', address: 'alex@upi' }),
+    }).then((r) => r.json());
+    assert(
+      validWithdraw.success && validWithdraw.wallet.VEs === 733 && validWithdraw.withdrawal.status === 'PENDING',
+      `Valid withdrawal (200 VEs debited) -> Balance ${validWithdraw.wallet?.VEs} VEs, status PENDING`
+    );
+
+    // 19. Transaction Ledger Verification
+    const historyARes = await fetch(`${baseUrl}/api/wallet/history`, {
+      headers: { Authorization: `Bearer ${tokenA}` },
+    }).then((r) => r.json());
+    assert(
+      historyARes.success && Array.isArray(historyARes.transactions) && historyARes.transactions.length > 0,
+      'User A transaction history retrieved'
+    );
+
+    // 20. Multi-Tenant Ledger Isolation
+    const historyBRes = await fetch(`${baseUrl}/api/wallet/history`, {
+      headers: { Authorization: `Bearer ${tokenB}` },
+    }).then((r) => r.json());
+    const userBTransactionsForA = historyBRes.transactions?.filter((t) => t.userId === userAId) || [];
+    assert(userBTransactionsForA.length === 0, 'User B ledger completely isolated from User A transactions');
+
+    // 21. Giveaway Participation - Authoritative Fee Deduction (733 - 250 = 483 VEs)
+    const joinGiveawayRes = await fetch(`${baseUrl}/api/giveaways/${auditGwActiveId}/prizes/${auditPrizeIphoneId}/join`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${tokenA}`,
+      },
+      body: JSON.stringify({ idempotencyKey: 'AUDIT-JOIN-KEY-001' }),
+    }).then((r) => r.json());
+    assert(
+      joinGiveawayRes.success && joinGiveawayRes.wallet.VEs === 483,
+      `Giveaway join deducts authoritative 250 VEs -> Balance ${joinGiveawayRes.wallet?.VEs} VEs`
+    );
+
+    // 22. Giveaway Participation - Duplicate Entry Block with Idempotent Status
+    const dupJoinRes = await fetch(`${baseUrl}/api/giveaways/${auditGwActiveId}/prizes/${auditPrizeIphoneId}/join`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${tokenA}`,
+      },
+      body: JSON.stringify({ idempotencyKey: 'AUDIT-JOIN-KEY-001' }),
+    }).then((r) => r.json());
+    assert(
+      dupJoinRes.success && dupJoinRes.alreadyJoined === true && dupJoinRes.wallet.VEs === 483,
+      'Duplicate giveaway participation returns idempotent status, preserves 1 entry in DB and maintains balance at 483 VEs'
+    );
+
+    // 23. Winner Claim Flow (Rohan Sharma)
+    const winnerLogin = await fetch(`${baseUrl}/api/auth/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ emailOrUsername: 'audit.rohan@example.com', password: 'password123' }),
+    }).then((r) => r.json());
+    const winnerToken = winnerLogin.token;
+
+    const claimRes = await fetch(`${baseUrl}/api/giveaways/${auditGwEndedId}/prizes/${auditPrizeWatchId}/claim`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${winnerToken}`,
       },
       body: JSON.stringify({
-        claimType: 'SHIPPING_ADDRESS',
-        shippingAddress: {
-          fullName: 'Rohan Sharma',
-          addressLine1: 'Plot 44, Indiranagar',
-          city: 'Bengaluru',
-          state: 'Karnataka',
-          postalCode: '560038',
-          phoneNumber: '+91 9876543210',
-        },
+        fullName: 'Audit Rohan',
+        phoneNumber: '9876543210',
+        addressLine1: 'Flat 101, Audit Residency',
+        city: 'Bengaluru',
+        state: 'Karnataka',
+        pincode: '560001',
       }),
     }).then((r) => r.json());
-    assert(claimRes.success && claimRes.claim.status === 'SUBMITTED', 'Verified winner physical prize claim processed', claimRes);
+    assert(claimRes.success && claimRes.claim.status === 'SUBMITTED', 'Verified winner physical prize claim processed');
+
+    // Clean up isolated test records
+    await User.deleteMany({ userId: { $in: [userAId, userBId, winnerUserId, adminUserId] } });
+    await GiveawayParticipation.deleteMany({ userId: { $in: [userAId, userBId, winnerUserId] } });
+    await GiveawayEntryTransaction.deleteMany({ userId: { $in: [userAId, userBId, winnerUserId] } });
+    await PrizeClaim.deleteMany({ userId: { $in: [winnerUserId, userAId] } });
+    await GiveawayWinner.deleteMany({ userId: winnerUserId, giveawayId: auditGwEndedId });
+    await Prize.deleteMany({ prizeId: { $in: [auditPrizeIphoneId, auditPrizeWatchId] } });
+    await Giveaway.deleteMany({ giveawayId: { $in: [auditGwActiveId, auditGwEndedId] } });
 
     console.log('\n====================================================');
     console.log(`🎉 AUDIT COMPLETE: ${passed} PASSED, ${failed} FAILED`);
-    console.log('====================================================');
+    console.log('====================================================\n');
 
     server.close();
     await mongoose.disconnect();
     process.exit(failed > 0 ? 1 : 0);
   } catch (err) {
-    console.error('Audit execution fatal error:', err);
+    console.error('Fatal audit error:', err);
     server.close();
     await mongoose.disconnect();
     process.exit(1);

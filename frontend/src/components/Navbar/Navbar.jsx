@@ -10,6 +10,7 @@ export const Navbar = () => {
   const [profileOpen, setProfileOpen] = useState(false);
 
   const isActive = (path) => location.pathname === path;
+  const isDev = import.meta.env.DEV;
 
   const handleSwitch = async (acc) => {
     try {
@@ -106,34 +107,37 @@ export const Navbar = () => {
 
                     <div className={styles.dropdownDivider} />
 
-                    {/* Fast Demo Account Switcher for Reviewers */}
-                    <div className={styles.switchSection}>
-                      <p className={styles.sectionLabel}>
-                        <Sparkles size={12} aria-hidden="true" /> Switch Test Profile
-                      </p>
-                      {demoAccounts.map((acc) => (
-                        <button
-                          key={acc.userId}
-                          className={`${styles.switchBtn} ${user.userId === acc.userId ? styles.switchBtnActive : ''}`}
-                          onClick={() => handleSwitch(acc)}
-                          type="button"
-                        >
-                          <div className={styles.switchBtnRow}>
-                            <span className={styles.switchName}>{acc.username}</span>
-                            <span className={styles.switchVe}>{acc.wallet?.VEs} VEs</span>
-                          </div>
-                          <span className={styles.switchNote}>
-                            {acc.userId === 'VE10099' && 'Fresh QA User (0 entries · Test Join Modal)'}
-                            {acc.userId === 'VE10842' && 'Standard User (850 VEs)'}
-                            {acc.userId === 'VE10012' && 'Low Balance (120 VEs)'}
-                            {acc.userId === 'VE10025' && 'Winner Account (Apple Watch)'}
-                            {acc.userId === 'VE00001' && 'Administrator'}
-                          </span>
-                        </button>
-                      ))}
-                    </div>
-
-                    <div className={styles.dropdownDivider} />
+                    {/* Fast Demo Account Switcher (DEV ONLY) */}
+                    {isDev && demoAccounts && demoAccounts.length > 0 && (
+                      <>
+                        <div className={styles.switchSection}>
+                          <p className={styles.sectionLabel}>
+                            <Sparkles size={12} aria-hidden="true" /> Switch Test Profile
+                          </p>
+                          {demoAccounts.map((acc) => (
+                            <button
+                              key={acc.userId}
+                              className={`${styles.switchBtn} ${user.userId === acc.userId ? styles.switchBtnActive : ''}`}
+                              onClick={() => handleSwitch(acc)}
+                              type="button"
+                            >
+                              <div className={styles.switchBtnRow}>
+                                <span className={styles.switchName}>{acc.username}</span>
+                                <span className={styles.switchVe}>{acc.wallet?.VEs} VEs</span>
+                              </div>
+                              <span className={styles.switchNote}>
+                                {acc.userId === 'VE10099' && 'Fresh QA User (0 entries · Test Join Modal)'}
+                                {acc.userId === 'VE10842' && 'Standard User (850 VEs)'}
+                                {acc.userId === 'VE10012' && 'Low Balance (120 VEs)'}
+                                {acc.userId === 'VE10025' && 'Winner Account (Apple Watch)'}
+                                {acc.userId === 'VE00001' && 'Administrator'}
+                              </span>
+                            </button>
+                          ))}
+                        </div>
+                        <div className={styles.dropdownDivider} />
+                      </>
+                    )}
 
                     <button
                       className={styles.logoutBtn}

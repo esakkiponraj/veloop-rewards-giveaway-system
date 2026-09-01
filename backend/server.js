@@ -2,6 +2,7 @@ import http from 'http';
 import dotenv from 'dotenv';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import mongoose from 'mongoose';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -14,13 +15,33 @@ import app from './src/app.js';
 import connectDB from './src/config/db.js';
 import { seedDatabase } from './src/utils/seedData.js';
 
-// Top-level Process Error Guards to prevent unhandled crashes
+let server = null;
+
+// Fatal Process Error Handler: Logs error, terminates HTTP server, closes Mongo, and exits with code 1
+const handleFatalError = async (type, err) => {
+  console.error(`\n[Process] FATAL ${type}:`, err);
+  if (server) {
+    server.close(() => {
+      console.error('[Process] HTTP server closed gracefully due to fatal error.');
+    });
+  }
+  try {
+    if (mongoose.connection.readyState === 1) {
+      await mongoose.disconnect();
+      console.error('[Process] MongoDB connection disconnected.');
+    }
+  } catch (dbErr) {
+    console.error('[Process] Error during emergency DB disconnect:', dbErr);
+  }
+  process.exit(1);
+};
+
 process.on('unhandledRejection', (reason, promise) => {
-  console.error('[Process] Unhandled Rejection at:', promise, 'reason:', reason);
+  handleFatalError('Unhandled Rejection', reason);
 });
 
 process.on('uncaughtException', (err) => {
-  console.error('[Process] Uncaught Exception thrown:', err);
+  handleFatalError('Uncaught Exception', err);
 });
 
 const PORT = process.env.PORT || 5000;
@@ -31,11 +52,11 @@ const startServer = async () => {
     const conn = await connectDB();
 
     if (conn) {
-      // Idempotently verify and ensure full catalogue and demo users on boot
+      // Idempotently verify catalogue configuration on boot
       await seedDatabase();
     }
 
-    const server = http.createServer(app);
+    server = http.createServer(app);
 
     server.listen(PORT, () => {
       console.log(`====================================================`);
@@ -45,13 +66,18 @@ const startServer = async () => {
       console.log(`====================================================`);
     });
 
-    // Graceful shutdown handling
-    const shutdown = () => {
+    // Graceful shutdown handling on SIGINT/SIGTERM
+    const shutdown = async () => {
       console.log('\n[Server] Gracefully shutting down...');
-      server.close(() => {
-        console.log('[Server] Closed out remaining connections.');
-        process.exit(0);
-      });
+      if (server) {
+        server.close(() => {
+          console.log('[Server] Closed out remaining connections.');
+        });
+      }
+      if (mongoose.connection.readyState === 1) {
+        await mongoose.disconnect();
+      }
+      process.exit(0);
     };
 
     process.on('SIGINT', shutdown);

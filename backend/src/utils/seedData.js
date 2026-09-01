@@ -5,21 +5,19 @@ import User from '../models/User.js';
 import Giveaway from '../models/Giveaway.js';
 import Prize from '../models/Prize.js';
 import GiveawayWinner from '../models/GiveawayWinner.js';
-import GiveawayParticipation from '../models/GiveawayParticipation.js';
-import GiveawayEntryTransaction from '../models/GiveawayEntryTransaction.js';
-import PrizeClaim from '../models/PrizeClaim.js';
-import AuditLog from '../models/AuditLog.js';
 
 dotenv.config();
 
+/**
+ * Idempotently seeds or updates the catalogue configuration.
+ * Mutable user state (wallet, streak, password, participations) is preserved on restarts via $setOnInsert.
+ */
 export const seedDatabase = async () => {
   try {
-    console.log('[Seed] Ensuring development demo accounts and full prize catalogue...');
-
     const defaultPasswordHash = await bcrypt.hash('password123', 10);
     const adminPasswordHash = await bcrypt.hash('admin123', 10);
 
-    // 1. Idempotent Upsert of Test Users
+    // 1. Idempotent Upsert of Test Users (Preserving wallet & activity on restarts via $setOnInsert)
     const usersToSeed = [
       {
         userId: 'VE10842',
@@ -81,16 +79,29 @@ export const seedDatabase = async () => {
     for (const u of usersToSeed) {
       await User.findOneAndUpdate(
         { userId: u.userId },
-        { $set: u },
+        {
+          $set: {
+            userId: u.userId,
+            username: u.username,
+            email: u.email,
+            maskedId: u.maskedId,
+            role: u.role,
+          },
+          $setOnInsert: {
+            password: u.password,
+            wallet: u.wallet,
+            streak: u.streak,
+            lastDailyBonusAt: null,
+            fraudRiskScore: u.fraudRiskScore || 0,
+            isFraudSuspended: false,
+            deviceHistory: [],
+          },
+        },
         { upsert: true, new: true, setDefaultsOnInsert: true }
       );
     }
 
-    // Ensure Modal Tester has NO participations for clean modal testing
-    await GiveawayParticipation.deleteMany({ userId: 'VE10099' });
-    await GiveawayEntryTransaction.deleteMany({ userId: 'VE10099' });
-
-    // 2. Idempotent Upsert of Current Active Giveaway & All 6 Prizes
+    // 2. Idempotent Upsert of Current Active Giveaway & All 6 Separate Prizes
     const currentGiveawayId = 'GW-2026-08';
     const now = new Date();
     const futureEnd = new Date(now.getTime() + 12 * 24 * 60 * 60 * 1000 + 8 * 60 * 60 * 1000 + 45 * 60 * 1000);
@@ -460,8 +471,6 @@ export const seedDatabase = async () => {
       },
       { upsert: true }
     );
-
-    console.log(`[Seed] Successfully seeded ${seededPrizeDocs.length} active prizes and demo accounts.`);
   } catch (error) {
     console.error('[Seed] Database seed error:', error);
     throw error;

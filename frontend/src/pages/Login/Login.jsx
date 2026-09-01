@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { User, Lock, ArrowRight, ShieldCheck, Sparkles, AlertCircle, Loader2, CheckCircle2 } from 'lucide-react';
+import { User, Lock, ArrowRight, ShieldCheck, Sparkles, AlertCircle, Loader2 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext.jsx';
 import styles from './Login.module.css';
 
@@ -49,6 +49,8 @@ export const Login = () => {
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
 
+  const isDev = import.meta.env.DEV;
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
@@ -90,84 +92,88 @@ export const Login = () => {
             </p>
           </div>
 
-          {/* 1-Click Test User Switcher for Reviewers (Development / Evaluation Mode) */}
-          <div className={styles.reviewerSection}>
-            <div className={styles.reviewerBadge}>
-              <Sparkles size={14} aria-hidden="true" />
-              <span>1-CLICK EVALUATION PROFILES</span>
+          {/* 1-Click Test User Switcher for Reviewers (DEVELOPMENT / EVALUATION MODE ONLY) */}
+          {isDev && (
+            <div className={styles.reviewerSection}>
+              <div className={styles.reviewerBadge}>
+                <Sparkles size={14} aria-hidden="true" />
+                <span>1-CLICK EVALUATION PROFILES (DEV ONLY)</span>
+              </div>
+
+              <div className={styles.demoButtonsGrid}>
+                <button
+                  type="button"
+                  className={styles.demoBtnGold}
+                  onClick={() => handleQuickLogin('modal.tester@example.com')}
+                  disabled={loading}
+                >
+                  <div className={styles.demoBtnCol}>
+                    <strong>Modal Tester (Fresh QA User)</strong>
+                    <span>1,000 VEs · 0 Entries (Test Join Modal)</span>
+                  </div>
+                  <ArrowRight size={14} className={styles.demoArrow} aria-hidden="true" />
+                </button>
+
+                <button
+                  type="button"
+                  className={styles.demoBtn}
+                  onClick={() => handleQuickLogin('alex.vance@example.com')}
+                  disabled={loading}
+                >
+                  <div className={styles.demoBtnCol}>
+                    <strong>Alex Vance (Standard User)</strong>
+                    <span>850 VEs · 1,200 SVEs · 5,000 Tokens</span>
+                  </div>
+                  <ArrowRight size={14} className={styles.demoArrow} aria-hidden="true" />
+                </button>
+
+                <button
+                  type="button"
+                  className={styles.demoBtn}
+                  onClick={() => handleQuickLogin('jordan.lee@example.com')}
+                  disabled={loading}
+                >
+                  <div className={styles.demoBtnCol}>
+                    <strong>Jordan Lee (Low Balance)</strong>
+                    <span>120 VEs · Test Insufficient Balance state</span>
+                  </div>
+                  <ArrowRight size={14} className={styles.demoArrow} aria-hidden="true" />
+                </button>
+
+                <button
+                  type="button"
+                  className={styles.demoBtn}
+                  onClick={() => handleQuickLogin('rohan.winner@example.com')}
+                  disabled={loading}
+                >
+                  <div className={styles.demoBtnCol}>
+                    <strong>Rohan Sharma (Winner VE10025)</strong>
+                    <span>Won Apple Watch · Test Claim Form</span>
+                  </div>
+                  <ArrowRight size={14} className={styles.demoArrow} aria-hidden="true" />
+                </button>
+
+                <button
+                  type="button"
+                  className={styles.demoBtn}
+                  onClick={() => handleQuickLogin('admin@veloop.io')}
+                  disabled={loading}
+                >
+                  <div className={styles.demoBtnCol}>
+                    <strong>VELOOP SuperAdmin</strong>
+                    <span>Access Admin Control Portal</span>
+                  </div>
+                  <ArrowRight size={14} className={styles.demoArrow} aria-hidden="true" />
+                </button>
+              </div>
             </div>
+          )}
 
-            <div className={styles.demoButtonsGrid}>
-              <button
-                type="button"
-                className={styles.demoBtnGold}
-                onClick={() => handleQuickLogin('modal.tester@example.com')}
-                disabled={loading}
-              >
-                <div className={styles.demoBtnCol}>
-                  <strong>Modal Tester (Fresh QA User)</strong>
-                  <span>1,000 VEs · 0 Entries (Test Join Confirmation Modal)</span>
-                </div>
-                <ArrowRight size={14} className={styles.demoArrow} aria-hidden="true" />
-              </button>
-
-              <button
-                type="button"
-                className={styles.demoBtn}
-                onClick={() => handleQuickLogin('alex.vance@example.com')}
-                disabled={loading}
-              >
-                <div className={styles.demoBtnCol}>
-                  <strong>Alex Vance (Standard User)</strong>
-                  <span>850 VEs · 1,200 SVEs · 5,000 Tokens</span>
-                </div>
-                <ArrowRight size={14} className={styles.demoArrow} aria-hidden="true" />
-              </button>
-
-              <button
-                type="button"
-                className={styles.demoBtn}
-                onClick={() => handleQuickLogin('jordan.lee@example.com')}
-                disabled={loading}
-              >
-                <div className={styles.demoBtnCol}>
-                  <strong>Jordan Lee (Low Balance)</strong>
-                  <span>120 VEs · Test Insufficient Balance state</span>
-                </div>
-                <ArrowRight size={14} className={styles.demoArrow} aria-hidden="true" />
-              </button>
-
-              <button
-                type="button"
-                className={styles.demoBtn}
-                onClick={() => handleQuickLogin('rohan.winner@example.com')}
-                disabled={loading}
-              >
-                <div className={styles.demoBtnCol}>
-                  <strong>Rohan Sharma (Winner VE10025)</strong>
-                  <span>Won Apple Watch · Test Claim Form</span>
-                </div>
-                <ArrowRight size={14} className={styles.demoArrow} aria-hidden="true" />
-              </button>
-
-              <button
-                type="button"
-                className={styles.demoBtn}
-                onClick={() => handleQuickLogin('admin@veloop.io')}
-                disabled={loading}
-              >
-                <div className={styles.demoBtnCol}>
-                  <strong>VELOOP SuperAdmin</strong>
-                  <span>Access Admin Control Portal</span>
-                </div>
-                <ArrowRight size={14} className={styles.demoArrow} aria-hidden="true" />
-              </button>
+          {isDev && (
+            <div className={styles.divider}>
+              <span>or sign in with credentials</span>
             </div>
-          </div>
-
-          <div className={styles.divider}>
-            <span>or sign in with credentials</span>
-          </div>
+          )}
 
           {/* Form */}
           <form onSubmit={handleSubmit} className={styles.form}>
@@ -201,7 +207,7 @@ export const Login = () => {
                   type="password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  placeholder="Enter password (default: password123)"
+                  placeholder="Enter password"
                   className={styles.input}
                   required
                 />

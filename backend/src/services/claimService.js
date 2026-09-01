@@ -1,4 +1,6 @@
+import mongoose from 'mongoose';
 import { repo } from '../utils/repository.js';
+import GiveawayWinner from '../models/GiveawayWinner.js';
 
 export const processPrizeClaim = async ({
   userId,
@@ -8,42 +10,49 @@ export const processPrizeClaim = async ({
   ipAddress,
   userAgent,
 }) => {
-  // 1. Authoritative Winner Check
-  const winnerRecord = await repo.getUserWinnerRecord(userId, giveawayId);
+  if (mongoose.connection.readyState !== 1) {
+    const error = new Error('Database service is temporarily unavailable. Please try again shortly.');
+    error.code = 'SERVICE_UNAVAILABLE';
+    error.statusCode = 503;
+    throw error;
+  }
+
+  // 1. Verify winner status
+  const winnerRecord = await repo.getUserWinnerRecord(userId, giveawayId, prizeId);
   if (!winnerRecord) {
-    const error = new Error('You are not registered as a winner for this prize/giveaway event.');
+    const error = new Error('You are not a registered winner for this giveaway event.');
     error.code = 'CLAIM_NOT_ALLOWED';
     error.statusCode = 403;
     throw error;
   }
 
-  // 2. Deadline Check
+  // 2. Check if claim deadline expired
   const now = new Date();
-  if (now > new Date(winnerRecord.claimDeadline)) {
-    const error = new Error('The claim window for this prize has expired.');
-    error.code = 'CLAIM_EXPIRED';
+  if (winnerRecord.claimDeadline && now > new Date(winnerRecord.claimDeadline)) {
+    winnerRecord.status = 'EXPIRED';
+    await winnerRecord.save();
+    const error = new Error('The prize claim window has expired. Prize allocation forfeited.');
+    error.code = 'CLAIM_DEADLINE_EXPIRED';
     error.statusCode = 400;
     throw error;
   }
 
-  // 3. Existing Claim Check
-  const existingClaim = await repo.getUserClaim(userId, giveawayId);
+  // 3. Check for existing claim
+  const existingClaim = await repo.getUserClaim(userId, giveawayId, prizeId);
   if (existingClaim) {
     return {
       success: true,
-      message: 'Claim details already submitted and under processing.',
-      claim: existingClaim,
       alreadySubmitted: true,
+      claim: existingClaim,
+      message: 'Claim details have already been submitted and are in review.',
     };
   }
 
-  // 4. Authoritative Prize Verification
-  const { prize } = await repo.getPrizeBySlug(winnerRecord.prizeId || prizeId);
-  const prizeType = prize ? prize.prizeType : winnerRecord.prizeType || 'PHYSICAL';
-
-  // 5. Input Validation Based on Authoritative Prize Type
+  // 4. Validate claim payload according to prize type
+  const prizeType = winnerRecord.prizeType || 'PHYSICAL';
   const claimId = `CLM-${Date.now()}-${Math.random().toString(36).substring(2, 7).toUpperCase()}`;
-  let claimPayload = {
+
+  const claimPayload = {
     claimId,
     giveawayId,
     prizeId: winnerRecord.prizeId,
@@ -63,7 +72,7 @@ export const processPrizeClaim = async ({
     const addressLine = shipping.addressLine || shipping.addressLine1;
     const city = shipping.city;
     const state = shipping.state;
-    const pinCode = shipping.pinCode || shipping.postalCode;
+    const pinCode = shipping.pinCode || shipping.postalCode || shipping.pincode;
 
     if (!fullName || !phoneNumber || !addressLine || !city || !state || !pinCode) {
       const error = new Error('All physical shipping fields are required.');
@@ -97,17 +106,21 @@ export const processPrizeClaim = async ({
   // 6. Save Claim
   const newClaim = await repo.createClaim(claimPayload);
 
-  // 7. Audit Log
+  // 7. Update Winner Record Status
+  winnerRecord.status = 'CLAIM_SUBMITTED';
+  await winnerRecord.save();
+
+  // 8. Audit Log
   await repo.createAuditLog({
-    logId: `AUD-${Date.now()}-${Math.floor(1000 + Math.random() * 9000)}`,
+    logId: `AUD-CLAIM-${Date.now()}-${Math.floor(1000 + Math.random() * 9000)}`,
     userId,
     giveawayId,
     action: 'CLAIM_SUBMITTED',
     result: 'SUCCESS',
     metadata: {
-      claimId,
       prizeId: winnerRecord.prizeId,
-      prizeType,
+      prizeName: winnerRecord.prizeName,
+      claimType: prizeType,
     },
     ipAddress,
     userAgent,
@@ -115,22 +128,19 @@ export const processPrizeClaim = async ({
 
   return {
     success: true,
-    message: 'Prize claim successfully submitted! Our reward fulfillment team will process your dispatch.',
+    message: 'Prize claim submitted successfully! Fulfillment verification is in progress.',
     claim: newClaim,
   };
 };
 
 export const getUserClaimStatus = async (userId, giveawayId) => {
-  const winner = await repo.getUserWinnerRecord(userId, giveawayId);
-  if (!winner) {
-    return { isWinner: false, claim: null };
-  }
+  const winnerRecord = await repo.getUserWinnerRecord(userId, giveawayId);
+  const claimRecord = await repo.getUserClaim(userId, giveawayId);
 
-  const claim = await repo.getUserClaim(userId, giveawayId);
   return {
-    isWinner: true,
-    winner,
-    claim: claim || null,
-    claimStatus: claim ? claim.status : 'NOT_SUBMITTED',
+    isWinner: !!winnerRecord,
+    winner: winnerRecord || null,
+    claim: claimRecord || null,
+    claimStatus: claimRecord ? claimRecord.status : winnerRecord ? 'NOT_SUBMITTED' : null,
   };
 };

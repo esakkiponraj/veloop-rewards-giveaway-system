@@ -85,7 +85,9 @@ export const claimDailyBonus = async (req, res, next) => {
 // POST /api/wallet/withdraw
 export const requestWithdrawal = async (req, res, next) => {
   try {
-    const { amount, payoutMethod, accountDetail } = req.body;
+    const { amount } = req.body;
+    const payoutMethod = req.body.payoutMethod || req.body.method;
+    const accountDetail = req.body.accountDetail || req.body.address;
     const userId = req.user.userId;
 
     const numAmount = parseInt(amount, 10);

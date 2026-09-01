@@ -101,28 +101,30 @@ async function runRuntimeCatalogueAuthTest() {
     }).then((r) => r.json());
     assert(adminLogin.success && adminLogin.user.role === 'admin', 'VELOOP SuperAdmin login succeeded');
 
-    // 4. Repeated Account Switching without 401
-    console.log('\n[STEP 4] Testing rapid repeated account switching sequence...');
+    // 4. Repeated 20 Consecutive Demo Account Switches without 401
+    console.log('\n[STEP 4] Testing 20 consecutive demo account switches sequence...');
     const switchProfiles = [
       { email: 'alex.vance@example.com', pwd: 'password123' },
       { email: 'modal.tester@example.com', pwd: 'password123' },
       { email: 'admin@veloop.io', pwd: 'admin123' },
       { email: 'rohan.winner@example.com', pwd: 'password123' },
-      { email: 'alex.vance@example.com', pwd: 'password123' },
+      { email: 'jordan.lee@example.com', pwd: 'password123' },
     ];
 
     let switchSuccess = true;
-    for (const p of switchProfiles) {
-      const swRes = await fetch(`${baseUrl}/api/auth/login`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ emailOrUsername: p.email, password: p.pwd }),
-      });
-      if (swRes.status !== 200) {
-        switchSuccess = false;
+    for (let cycle = 0; cycle < 4; cycle++) {
+      for (const p of switchProfiles) {
+        const swRes = await fetch(`${baseUrl}/api/auth/login`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ emailOrUsername: p.email, password: p.pwd }),
+        });
+        if (swRes.status !== 200) {
+          switchSuccess = false;
+        }
       }
     }
-    assert(switchSuccess, 'Rapid repeated account switching executed with ZERO 401 errors');
+    assert(switchSuccess, '20 consecutive account switches executed with ZERO 401 errors');
 
     // 5. Public Current Giveaway API Returns All 6 Prizes
     console.log('\n[STEP 5] Testing complete 6-prize catalogue payload...');
@@ -152,43 +154,71 @@ async function runRuntimeCatalogueAuthTest() {
       }
     });
 
-    // 6. Modal Tester has ZERO participation records
-    console.log('\n[STEP 6] Verifying Modal Tester zero participation state...');
-    const modalTesterStatus = await fetch(`${baseUrl}/api/giveaways/GW-2026-08/prizes/PRIZE-IPHONE15/my-status`, {
+    // 6. Modal Tester has ZERO participation records initially (or is clean before test)
+    console.log('\n[STEP 6] Verifying Modal Tester participation & restart-persistence flow...');
+    // Clean Modal Tester participations for this test flow
+    await GiveawayParticipation.deleteMany({ userId: 'VE10099' });
+    await User.findOneAndUpdate({ userId: 'VE10099' }, { $set: { 'wallet.VEs': 1000 } });
+
+    const modalTesterPreJoin = await fetch(`${baseUrl}/api/giveaways/GW-2026-08/prizes/PRIZE-IPHONE15/my-status`, {
       headers: { Authorization: `Bearer ${modalTesterLogin.token}` },
     }).then((r) => r.json());
     assert(
-      modalTesterStatus.success && modalTesterStatus.isParticipating === false,
-      'Modal Tester is clean with isParticipating: false (Ready for manual Join Modal test)'
+      modalTesterPreJoin.success && modalTesterPreJoin.isParticipating === false,
+      'Modal Tester is clean with isParticipating: false before join'
     );
 
-    // 7. Joining one prize does not hide or mutate the other 5 prizes
-    console.log('\n[STEP 7] Verifying that joining one prize preserves full 6-prize catalogue...');
-    const joinRes = await fetch(`${baseUrl}/api/giveaways/GW-2026-08/prizes/PRIZE-IPHONE15/join`, {
+    // 7. Modal Tester joins the iPhone prize (1000 -> 750 VEs)
+    const modalTesterJoin = await fetch(`${baseUrl}/api/giveaways/GW-2026-08/prizes/PRIZE-IPHONE15/join`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        Authorization: `Bearer ${alexLogin.token}`,
+        Authorization: `Bearer ${modalTesterLogin.token}`,
       },
-      body: JSON.stringify({ idempotencyKey: 'TEST-FULL-CATALOGUE-KEY' }),
+      body: JSON.stringify({ idempotencyKey: 'MODAL-TESTER-PERSISTENCE-KEY' }),
     }).then((r) => r.json());
-    assert(joinRes.success, 'Alex Vance joined iPhone 15 Pro prize');
-
-    const alexViewAfterJoin = await fetch(`${baseUrl}/api/giveaways/current`).then((r) => r.json());
     assert(
-      alexViewAfterJoin.giveaway.prizes.length === 6,
-      'Public giveaway catalogue still contains all 6 prizes after user participates in 1 prize'
+      modalTesterJoin.success && modalTesterJoin.wallet.VEs === 750,
+      'Modal Tester joined iPhone 15 Pro (1000 VEs -> 750 VEs)'
     );
 
-    // 8. Pending Confirmation Prize Direct Join Blocked
+    // 8. Simulate backend restart by calling seedDatabase()
+    console.log('\n[STEP 7] Simulating backend restart (calling seedDatabase())...');
+    await seedDatabase();
+
+    // 9. Verify wallet remains 750 VEs and participation is preserved after restart
+    const modalTesterAfterRestart = await User.findOne({ userId: 'VE10099' });
+    assert(
+      modalTesterAfterRestart.wallet.VEs === 750,
+      `Modal Tester wallet preserved at 750 VEs on restart (Found: ${modalTesterAfterRestart.wallet.VEs} VEs)`
+    );
+
+    const participationAfterRestart = await GiveawayParticipation.findOne({
+      userId: 'VE10099',
+      giveawayId: 'GW-2026-08',
+      prizeId: 'PRIZE-IPHONE15',
+    });
+    assert(
+      !!participationAfterRestart && participationAfterRestart.entryCount === 1,
+      'Modal Tester iPhone participation record survived backend restart'
+    );
+
+    // 10. Verify the other 5 prizes remain visible and attached
+    const catalogueAfterRestart = await fetch(`${baseUrl}/api/giveaways/current`).then((r) => r.json());
+    assert(
+      catalogueAfterRestart.giveaway.prizes.length === 6,
+      'All 6 prizes remain visible and linked after restart'
+    );
+
+    // 11. Pending Confirmation Prize Direct Join Blocked
     console.log('\n[STEP 8] Verifying backend block on pending voucher join...');
     const pendingJoin = await fetch(`${baseUrl}/api/giveaways/GW-2026-08/prizes/PRIZE-AMAZON20/join`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        Authorization: `Bearer ${alexLogin.token}`,
+        Authorization: `Bearer ${modalTesterLogin.token}`,
       },
-      body: JSON.stringify({ idempotencyKey: 'BYPASS-PENDING-TEST' }),
+      body: JSON.stringify({ idempotencyKey: 'BYPASS-PENDING-TEST-2' }),
     });
     const pendingJson = await pendingJoin.json();
     assert(
@@ -196,7 +226,7 @@ async function runRuntimeCatalogueAuthTest() {
       `Pending voucher join blocked with HTTP 400 (Code: ${pendingJson.code})`
     );
 
-    // 9. Previous Winners Archive endpoint
+    // 12. Previous Winners Archive endpoint
     console.log('\n[STEP 9] Verifying /api/giveaways/previous/winners endpoint...');
     const prevWinners = await fetch(`${baseUrl}/api/giveaways/previous/winners`).then((r) => r.json());
     assert(
