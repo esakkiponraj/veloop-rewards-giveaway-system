@@ -58,6 +58,17 @@ const startServer = async () => {
 
     server = http.createServer(app);
 
+    server.on('error', (err) => {
+      if (err.code === 'EADDRINUSE') {
+        console.error(`\n❌ [Server Error] Port ${PORT} is already in use by another running process.`);
+        console.error(`👉 Run in PowerShell to terminate the blocking process:`);
+        console.error(`   Get-Process -Id (Get-NetTCPConnection -LocalPort ${PORT}).OwningProcess | Stop-Process -Force\n`);
+      } else {
+        console.error('[Server Error]', err);
+      }
+      process.exit(1);
+    });
+
     server.listen(PORT, () => {
       console.log(`====================================================`);
       console.log(`🚀 VELOOP Rewards Backend running on port ${PORT}`);
