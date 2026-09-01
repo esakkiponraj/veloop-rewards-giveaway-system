@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { Trophy, Gift, ArrowRight, CheckCircle2, Ticket } from 'lucide-react';
+import { Trophy, Gift, ArrowRight, CheckCircle2, Ticket, Clock, Package, AlertCircle } from 'lucide-react';
 import { getMyEntries } from '../../services/giveawayApi.js';
 import { useAuth } from '../../context/AuthContext.jsx';
 import { CustomLoader } from '../../components/CustomLoader/CustomLoader.jsx';
@@ -89,76 +89,111 @@ export const MyEntries = () => {
           </div>
         ) : (
           <div className={styles.entriesGrid}>
-            {entries.map((entry) => (
-              <div key={entry.participationId} className={styles.entryCard}>
-                {/* Top Status */}
-                <div className={styles.cardTop}>
-                  <span className={styles.eventTitle}>{entry.giveawayTitle}</span>
-                  <span className={`badge-status badge-status-${entry.giveawayStatus.toLowerCase()}`}>
-                    ● {entry.giveawayStatus}
-                  </span>
-                </div>
+            {entries.map((entry) => {
+              const isExpired = entry.winnerRecord?.status === 'EXPIRED';
+              const hasClaim = !!entry.claimRecord;
 
-                {/* Prize Info Row */}
-                <div className={styles.prizeRow}>
-                  <img src={entry.prizeImage} alt={entry.prizeName} className={styles.prizeImg} />
-                  <div className={styles.prizeDetails}>
-                    <h3 className={styles.prizeName}>{entry.prizeName}</h3>
-                    <span className={styles.entryCostTag}>
-                      Fee: -{entry.entryAmount} {entry.entryCurrency}
+              return (
+                <div key={entry.participationId} className={styles.entryCard}>
+                  {/* Top Status */}
+                  <div className={styles.cardTop}>
+                    <span className={styles.eventTitle}>{entry.giveawayTitle}</span>
+                    <span className={`badge-status badge-status-${entry.giveawayStatus.toLowerCase()}`}>
+                      ● {entry.giveawayStatus}
                     </span>
                   </div>
-                </div>
 
-                {/* Meta Details */}
-                <div className={styles.metaBox}>
-                  <div className={styles.metaRow}>
-                    <span>Entries Allocated:</span>
-                    <strong style={{ color: 'var(--brand-gold)' }}>{entry.entryCount || 1} Entry</strong>
-                  </div>
-                  <div className={styles.metaRow}>
-                    <span>Transaction ID:</span>
-                    <strong className={styles.monoTxn}>{entry.transactionId}</strong>
-                  </div>
-                  <div className={styles.metaRow}>
-                    <span>Joined Date:</span>
-                    <span>{new Date(entry.joinedAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
-                  </div>
-                </div>
-
-                {/* Winner / Non-Winner Status Block */}
-                {entry.isWinner ? (
-                  <div className={styles.winnerAlertBox}>
-                    <div className={styles.winnerAlertHeader}>
-                      <Trophy size={18} className={styles.trophyGold} />
-                      <span className={styles.winnerAlertTitle}>Winner Confirmed! 🎉</span>
+                  {/* Prize Info Row */}
+                  <div className={styles.prizeRow}>
+                    <img src={entry.prizeImage} alt={entry.prizeName} className={styles.prizeImg} />
+                    <div className={styles.prizeDetails}>
+                      <h3 className={styles.prizeName}>{entry.prizeName}</h3>
+                      <span className={styles.entryCostTag}>
+                        Fee: -{entry.entryAmount} {entry.entryCurrency}
+                      </span>
                     </div>
-                    <p className={styles.winnerAlertDesc}>
-                      Congratulations! Your entry was officially selected.
-                    </p>
-                    <button
-                      className="btn-veloop-gold"
-                      style={{ width: '100%', marginTop: '6px' }}
-                      onClick={() => {
-                        setSelectedClaimRecord(entry.winnerRecord);
-                        setClaimModalOpen(true);
-                      }}
-                    >
-                      {entry.claimRecord ? 'View Claim Status' : 'Claim Your Prize →'}
-                    </button>
                   </div>
-                ) : entry.giveawayStatus === 'ENDED' ? (
-                  <div className={styles.endedNonWinnerBox}>
-                    <p>Giveaway ended. Thanks for participating! Look out for our next major draw.</p>
+
+                  {/* Meta Details */}
+                  <div className={styles.metaBox}>
+                    <div className={styles.metaRow}>
+                      <span>Entries Allocated:</span>
+                      <strong style={{ color: 'var(--brand-gold)' }}>{entry.entryCount || 1} Entry</strong>
+                    </div>
+                    <div className={styles.metaRow}>
+                      <span>Transaction ID:</span>
+                      <strong className={styles.monoTxn}>{entry.transactionId}</strong>
+                    </div>
+                    <div className={styles.metaRow}>
+                      <span>Joined Date:</span>
+                      <span>{new Date(entry.joinedAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
+                    </div>
                   </div>
-                ) : (
-                  <div className={styles.activeDrawBox}>
-                    <CheckCircle2 size={16} className={styles.checkIcon} />
-                    <span>Sealed in Active Draw Pool</span>
-                  </div>
-                )}
-              </div>
-            ))}
+
+                  {/* Winner / Non-Winner Status Block */}
+                  {entry.isWinner ? (
+                    <div className={styles.winnerAlertBox}>
+                      <div className={styles.winnerAlertHeader}>
+                        <Trophy size={18} className={styles.trophyGold} />
+                        <span className={styles.winnerAlertTitle}>Winner Confirmed! 🎉</span>
+                      </div>
+
+                      {isExpired ? (
+                        <div className={styles.expiredNotice}>
+                          <AlertCircle size={16} color="#f43f5e" />
+                          <span>Claim window expired. Prize allocation forfeited.</span>
+                        </div>
+                      ) : (
+                        <>
+                          <p className={styles.winnerAlertDesc}>
+                            Congratulations! Your entry was officially selected.
+                            {entry.winnerRecord?.claimDeadline && (
+                              <span className={styles.deadlineSubtext}>
+                                <br />Claim Deadline: {new Date(entry.winnerRecord.claimDeadline).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
+                              </span>
+                            )}
+                          </p>
+
+                          {hasClaim && (
+                            <div className={styles.claimStatusBadgeRow}>
+                              <span className={`badge-status ${entry.claimRecord.status === 'COMPLETED' ? 'badge-status-active' : 'badge-status-upcoming'}`}>
+                                Claim Status: {entry.claimRecord.status}
+                              </span>
+                              {entry.claimRecord.trackingInformation?.trackingNumber && (
+                                <span className={styles.monoTxn}>AWB: {entry.claimRecord.trackingInformation.trackingNumber}</span>
+                              )}
+                              {entry.claimRecord.trackingInformation?.voucherCode && (
+                                <span className={styles.goldVoucher}>Voucher: {entry.claimRecord.trackingInformation.voucherCode}</span>
+                              )}
+                            </div>
+                          )}
+
+                          <button
+                            className="btn-veloop-gold"
+                            style={{ width: '100%', marginTop: '6px' }}
+                            onClick={() => {
+                              setSelectedClaimRecord(entry.winnerRecord);
+                              setClaimModalOpen(true);
+                            }}
+                          >
+                            {hasClaim ? 'View Claim & Fulfillment Status →' : 'Claim Your Prize Now →'}
+                          </button>
+                        </>
+                      )}
+                    </div>
+                  ) : entry.giveawayStatus === 'ENDED' ? (
+                    <div className={styles.endedNonWinnerBox}>
+                      <p>Giveaway has concluded. Thanks for participating! Look out for our upcoming prize draws.</p>
+                    </div>
+                  ) : (
+                    <div className={styles.activeDrawBox}>
+                      <CheckCircle2 size={16} className={styles.checkIcon} />
+                      <span>Sealed in Active Draw Pool</span>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
           </div>
         )}
       </div>

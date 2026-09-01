@@ -51,7 +51,8 @@ export const applyReferralCode = async (req, res, next) => {
       });
     }
 
-    const referrer = await repo.findUserByEmailOrUsername(cleanCode.replace('VELOOP-', ''));
+    const identifier = cleanCode.replace('VELOOP-', '');
+    const referrer = (await repo.findUserById(identifier)) || (await repo.findUserByEmailOrUsername(identifier));
     if (!referrer) {
       return res.status(404).json({
         success: false,

@@ -1,33 +1,46 @@
 import crypto from 'crypto';
+import mongoose from 'mongoose';
 import Giveaway from '../models/Giveaway.js';
 import Prize from '../models/Prize.js';
 import User from '../models/User.js';
 import GiveawayParticipation from '../models/GiveawayParticipation.js';
 import GiveawayWinner from '../models/GiveawayWinner.js';
 import AuditLog from '../models/AuditLog.js';
+import { repo } from '../utils/repository.js';
 
 /**
- * Cryptographically secure weighted random selection without replacement
- * @param {Array} candidates - Array of participation records with entryCount
- * @param {number} countNeeded - Number of winners to pick
+ * Cryptographically secure weighted random selection without replacement.
+ * Uses Node.js crypto.randomInt() — NO Math.random() in production.
+ * Selection probability is strictly proportional to each participation's entryCount.
+ *
+ * @param {Array} candidates - Array of participation records with { userId, entryCount }
+ * @param {number} countNeeded - Number of distinct winners to select
  * @returns {Array} Selected winners
  */
 export const selectWeightedRandomWithoutReplacement = (candidates, countNeeded) => {
-  const pool = [...candidates];
+  if (!candidates || candidates.length === 0 || countNeeded <= 0) {
+    return [];
+  }
+
+  // Clone pool
+  const pool = candidates.map((c) => ({
+    ...c,
+    entryCount: Math.max(1, parseInt(c.entryCount, 10) || 1),
+  }));
   const selected = [];
 
   while (pool.length > 0 && selected.length < countNeeded) {
-    const totalWeight = pool.reduce((sum, item) => sum + (item.entryCount || 1), 0);
+    const totalWeight = pool.reduce((sum, item) => sum + item.entryCount, 0);
     if (totalWeight <= 0) break;
 
-    // Cryptographically secure random integer in [0, totalWeight - 1]
+    // Cryptographically secure integer in [0, totalWeight - 1]
     const randomPick = crypto.randomInt(0, totalWeight);
 
     let cumulative = 0;
     let selectedIndex = -1;
 
     for (let i = 0; i < pool.length; i++) {
-      cumulative += pool[i].entryCount || 1;
+      cumulative += pool[i].entryCount;
       if (randomPick < cumulative) {
         selectedIndex = i;
         break;
@@ -37,7 +50,8 @@ export const selectWeightedRandomWithoutReplacement = (candidates, countNeeded) 
     if (selectedIndex !== -1) {
       const winner = pool[selectedIndex];
       selected.push(winner);
-      // Remove all entries from this user to enforce no duplicate wins per prize
+
+      // Remove ALL entries from this user from the pool (without replacement enforcement)
       const winningUserId = winner.userId;
       for (let j = pool.length - 1; j >= 0; j--) {
         if (pool[j].userId === winningUserId) {
@@ -53,114 +67,285 @@ export const selectWeightedRandomWithoutReplacement = (candidates, countNeeded) 
 };
 
 /**
- * Select winners for a giveaway campaign enforcing prize limits and campaign win policies
- * @param {string} giveawayId 
- * @param {string} adminUserId 
- * @param {object} options - { maxWinsPerUserPerCampaign = 1 }
+ * Computes a deterministic SHA-256 candidate snapshot hash for transparent auditing
  */
-export const selectWinnersForGiveaway = async (
-  giveawayId,
-  adminUserId = 'SYSTEM',
-  options = { maxWinsPerUserPerCampaign: 1 }
-) => {
-  const giveaway = await Giveaway.findOne({
-    $or: [{ giveawayId }, { slug: giveawayId }],
-  });
+export const computeCandidateSnapshotHash = (candidates) => {
+  const normalized = candidates
+    .map((c) => `${c.userId}:${c.entryCount || 1}`)
+    .sort()
+    .join('|');
+  return crypto.createHash('sha256').update(normalized).digest('hex');
+};
 
+/**
+ * Executes winner selection for a giveaway campaign across all linked prizes.
+ * Enforces campaign status = ENDED, active participations, unique constraints, and audit trails.
+ *
+ * @param {object} params
+ * @param {string} params.giveawayId - Giveaway identifier or slug
+ * @param {string} params.adminUserId - Authenticated admin ID
+ * @param {string} [params.targetPrizeId] - Optional specific prize to draw
+ * @param {string} [params.ipAddress]
+ * @param {string} [params.userAgent]
+ */
+export const executeGiveawayDraw = async ({
+  giveawayId,
+  adminUserId = 'ADMIN',
+  targetPrizeId = null,
+  ipAddress = '127.0.0.1',
+  userAgent = 'Server-Admin',
+}) => {
+  const isMongo = mongoose.connection.readyState === 1;
+
+  const giveaway = await repo.getGiveawayById(giveawayId);
   if (!giveaway) {
-    const err = new Error('Giveaway not found');
+    const err = new Error('Giveaway campaign not found.');
     err.code = 'GIVEAWAY_NOT_FOUND';
     err.statusCode = 404;
     throw err;
   }
 
-  const maxWins = options.maxWinsPerUserPerCampaign || 1;
+  // 1. Campaign MUST be ENDED before winners can be drawn
+  if (giveaway.status !== 'ENDED') {
+    const err = new Error(`Giveaway must be in ENDED status before drawing winners. Current status: ${giveaway.status}`);
+    err.code = 'GIVEAWAY_NOT_ENDED';
+    err.statusCode = 400;
+    throw err;
+  }
 
-  // Retrieve prizes ordered by positionRank
-  const prizes = await Prize.find({ giveawayId: giveaway.giveawayId }).sort({ positionRank: 1 });
-  const allWinners = [];
+  // 2. Fetch linked prizes
+  let prizes = [];
+  if (isMongo) {
+    const query = { giveawayId: giveaway.giveawayId };
+    if (targetPrizeId) {
+      query.$or = [{ prizeId: targetPrizeId }, { slug: targetPrizeId }];
+    }
+    prizes = await Prize.find(query).sort({ positionRank: 1 });
+  } else {
+    prizes = (await repo.getGiveawayPrizes(giveaway.giveawayId)) || [];
+    if (targetPrizeId) {
+      prizes = prizes.filter((p) => p.prizeId === targetPrizeId || p.slug === targetPrizeId);
+    }
+  }
+
+  if (prizes.length === 0) {
+    const err = new Error('No eligible prizes found for this giveaway campaign.');
+    err.code = 'NO_PRIZES_FOUND';
+    err.statusCode = 404;
+    throw err;
+  }
+
+  const drawRunId = `DRAW-${Date.now()}-${crypto.randomBytes(4).toString('hex').toUpperCase()}`;
+  const results = [];
+  let totalNewWinnersCount = 0;
 
   for (const prize of prizes) {
-    // Check existing winners for this prize
-    const existingPrizeWinners = await GiveawayWinner.find({
-      giveawayId: giveaway.giveawayId,
-      prizeId: prize.prizeId,
-    });
-
-    if (existingPrizeWinners.length >= prize.winnerCount) {
-      allWinners.push(...existingPrizeWinners);
+    // 3. Skip prizes pending confirmation
+    if (prize.isPendingConfirmation) {
+      results.push({
+        prizeId: prize.prizeId,
+        prizeName: prize.name,
+        status: 'SKIPPED_PENDING_CONFIRMATION',
+        message: 'Prize value is pending final merchant confirmation. Draw skipped.',
+        winnerCount: 0,
+        winners: [],
+      });
       continue;
     }
 
-    const neededWinners = prize.winnerCount - existingPrizeWinners.length;
-
-    // Check user win counts across the entire campaign to enforce maxWinsPerUserPerCampaign
-    const campaignWinners = await GiveawayWinner.find({ giveawayId: giveaway.giveawayId });
-    const userWinCounts = {};
-    for (const w of campaignWinners) {
-      userWinCounts[w.userId] = (userWinCounts[w.userId] || 0) + 1;
+    // 4. Check if winners already exist for this prize (Idempotent Draw)
+    let existingWinners = [];
+    if (isMongo) {
+      existingWinners = await GiveawayWinner.find({
+        giveawayId: giveaway.giveawayId,
+        prizeId: prize.prizeId,
+      }).sort({ selectedAt: 1 });
+    } else {
+      existingWinners = (await repo.getGiveawayWinners(giveaway.giveawayId)).filter(
+        (w) => w.prizeId === prize.prizeId
+      );
     }
 
-    // Ineligible users who exceeded maxWins
-    const ineligibleUserIds = Object.keys(userWinCounts).filter((uid) => userWinCounts[uid] >= maxWins);
-
-    // Query active, non-blocked participations for this specific prize
-    const eligibleParticipations = await GiveawayParticipation.find({
-      giveawayId: giveaway.giveawayId,
-      prizeId: prize.prizeId,
-      status: 'ACTIVE',
-      userId: { $nin: ineligibleUserIds },
-    });
-
-    if (eligibleParticipations.length === 0) {
+    if (existingWinners.length >= prize.winnerCount) {
+      results.push({
+        prizeId: prize.prizeId,
+        prizeName: prize.name,
+        status: 'ALREADY_DRAWN',
+        message: `Draw already completed for ${prize.name}. Returning existing winners.`,
+        winnerCount: existingWinners.length,
+        winners: existingWinners.map((w) => ({
+          winnerId: w._id || w.winnerId,
+          prizeName: w.prizeName,
+          prizeType: w.prizeType,
+          maskedUserId: w.maskedUserId,
+          selectedAt: w.selectedAt,
+          status: w.status,
+        })),
+      });
       continue;
     }
 
-    // Perform weighted random selection without replacement
-    const selectedEntries = selectWeightedRandomWithoutReplacement(eligibleParticipations, neededWinners);
-    const deadline = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7-day default claim deadline
+    // 5. Query active, non-flagged, non-blocked, non-cancelled participations
+    let eligibleParticipations = [];
+    if (isMongo) {
+      eligibleParticipations = await GiveawayParticipation.find({
+        giveawayId: giveaway.giveawayId,
+        prizeId: prize.prizeId,
+        status: 'ACTIVE',
+      });
+    } else {
+      eligibleParticipations = (await repo.getUserParticipations()) || [];
+      eligibleParticipations = eligibleParticipations.filter(
+        (p) => p.giveawayId === giveaway.giveawayId && p.prizeId === prize.prizeId && p.status === 'ACTIVE'
+      );
+    }
 
+    // Deduplicate unique candidate user IDs
+    const uniqueUserIds = [...new Set(eligibleParticipations.map((p) => p.userId))];
+    const neededWinners = prize.winnerCount - existingWinners.length;
+
+    // 6. Insufficient Eligible Participants Check
+    if (uniqueUserIds.length < neededWinners) {
+      // If targeting a specific prize and not enough participants, fail with 409
+      if (targetPrizeId || prizes.length === 1) {
+        const err = new Error(
+          `Insufficient eligible participants for prize "${prize.name}". Required: ${neededWinners}, Available distinct participants: ${uniqueUserIds.length}`
+        );
+        err.code = 'INSUFFICIENT_ELIGIBLE_PARTICIPANTS';
+        err.statusCode = 409;
+        err.required = neededWinners;
+        err.available = uniqueUserIds.length;
+        throw err;
+      }
+
+      results.push({
+        prizeId: prize.prizeId,
+        prizeName: prize.name,
+        status: 'FAILED_INSUFFICIENT_PARTICIPANTS',
+        message: `Insufficient eligible participants. Required: ${neededWinners}, Available: ${uniqueUserIds.length}`,
+        required: neededWinners,
+        available: uniqueUserIds.length,
+        winners: [],
+      });
+      continue;
+    }
+
+    // 7. Format candidates for weighted selection
+    const candidateEntries = uniqueUserIds.map((uid) => {
+      const userPart = eligibleParticipations.find((p) => p.userId === uid);
+      return {
+        userId: uid,
+        entryCount: userPart ? userPart.entryCount || 1 : 1,
+      };
+    });
+
+    const candidateSnapshotHash = computeCandidateSnapshotHash(candidateEntries);
+    const totalEntryWeight = candidateEntries.reduce((sum, c) => sum + c.entryCount, 0);
+
+    // 8. Execute cryptographically secure weighted selection
+    const selectedEntries = selectWeightedRandomWithoutReplacement(candidateEntries, neededWinners);
+    const claimDeadline = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 calendar days
+    const createdPrizeWinners = [];
+
+    // 9. Save Winners & Audit Records
     for (const entry of selectedEntries) {
-      const winnerUser = await User.findOne({ userId: entry.userId });
-      const maskedId = winnerUser ? winnerUser.maskedId : `VE****${entry.userId.slice(-2)}`;
+      let maskedId = `VE****${entry.userId.slice(-2)}`;
+      if (isMongo) {
+        const winnerUser = await User.findOne({ userId: entry.userId });
+        if (winnerUser?.maskedId) {
+          maskedId = winnerUser.maskedId;
+        }
+      }
 
-      const winnerRecord = await GiveawayWinner.create({
+      const winnerPayload = {
         giveawayId: giveaway.giveawayId,
         prizeId: prize.prizeId,
         userId: entry.userId,
         maskedUserId: maskedId,
         prizeName: prize.name,
-        prizeType: prize.prizeType,
-        claimDeadline: deadline,
-        selectionMethod: adminUserId === 'SYSTEM' ? 'CRYPTOGRAPHIC_RANDOM' : 'ADMIN_FINALIZED',
+        prizeType: prize.prizeType || 'PHYSICAL',
+        claimDeadline,
+        selectionMethod: 'CRYPTOGRAPHIC_RANDOM',
         status: 'SELECTED',
         selectedAt: new Date(),
-      });
+      };
 
-      allWinners.push(winnerRecord);
+      let savedWinner = null;
+      if (isMongo) {
+        savedWinner = await GiveawayWinner.findOneAndUpdate(
+          { giveawayId: giveaway.giveawayId, prizeId: prize.prizeId, userId: entry.userId },
+          { $setOnInsert: winnerPayload },
+          { upsert: true, new: true }
+        );
+      } else {
+        savedWinner = { _id: `win-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`, ...winnerPayload };
+        repo.addWinner?.(savedWinner);
+      }
 
-      await AuditLog.create({
-        logId: `AUD-${Date.now()}-${Math.floor(1000 + Math.random() * 9000)}`,
-        userId: entry.userId,
+      createdPrizeWinners.push(savedWinner);
+      totalNewWinnersCount++;
+    }
+
+    // 10. Audit Log for this prize draw run
+    await repo.createAuditLog({
+      logId: `AUD-DRAW-${Date.now()}-${Math.floor(1000 + Math.random() * 9000)}`,
+      userId: adminUserId,
+      giveawayId: giveaway.giveawayId,
+      action: 'WINNERS_DRAWN',
+      result: 'SUCCESS',
+      metadata: {
+        drawRunId,
+        adminUserId,
         giveawayId: giveaway.giveawayId,
-        action: 'WINNER_SELECTED',
-        result: 'SUCCESS',
-        metadata: {
-          prizeId: prize.prizeId,
-          prizeName: prize.name,
-          adminUserId,
-          selectionMethod: 'CRYPTOGRAPHIC_WEIGHTED_RANDOM',
-          entryWeight: entry.entryCount || 1,
-        },
-      });
+        prizeId: prize.prizeId,
+        algorithmVersion: 'v3.0.0-crypto',
+        eligibleParticipantCount: candidateEntries.length,
+        totalEntryWeight,
+        requestedWinnerCount: neededWinners,
+        selectedWinnerIds: createdPrizeWinners.map((w) => w.userId),
+        candidateSnapshotHash,
+        drawTimestamp: new Date().toISOString(),
+      },
+      ipAddress,
+      userAgent,
+    });
+
+    results.push({
+      prizeId: prize.prizeId,
+      prizeName: prize.name,
+      status: 'SUCCESS',
+      message: `Selected ${createdPrizeWinners.length} winner(s) successfully for ${prize.name}.`,
+      winnerCount: createdPrizeWinners.length,
+      winners: createdPrizeWinners.map((w) => ({
+        winnerId: w._id || w.winnerId,
+        prizeName: w.prizeName,
+        prizeType: w.prizeType,
+        maskedUserId: w.maskedUserId,
+        selectedAt: w.selectedAt,
+        status: w.status,
+      })),
+    });
+  }
+
+  return {
+    success: true,
+    drawRunId,
+    giveawayId: giveaway.giveawayId,
+    totalNewWinners: totalNewWinnersCount,
+    results,
+  };
+};
+
+/**
+ * Legacy wrapper for backward compatibility
+ */
+export const selectWinnersForGiveaway = async (giveawayId, adminUserId = 'ADMIN') => {
+  const res = await executeGiveawayDraw({ giveawayId, adminUserId });
+  const allWinners = [];
+  for (const r of res.results) {
+    if (r.winners) {
+      allWinners.push(...r.winners);
     }
   }
-
-  // Update giveaway status to ENDED if not already
-  if (giveaway.status !== 'ENDED' && giveaway.status !== 'ARCHIVED') {
-    giveaway.status = 'ENDED';
-    await giveaway.save();
-  }
-
   return allWinners;
 };

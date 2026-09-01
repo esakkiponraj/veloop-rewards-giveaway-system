@@ -390,7 +390,7 @@ async function runAudit() {
       body: JSON.stringify({ amount: 200, method: 'UPI', address: 'alex@upi' }),
     }).then((r) => r.json());
     assert(
-      validWithdraw.success && validWithdraw.wallet.VEs === 733 && validWithdraw.withdrawal.status === 'PENDING',
+      validWithdraw.success && validWithdraw.wallet.VEs === 833 && validWithdraw.withdrawal.status === 'PENDING',
       `Valid withdrawal (200 VEs debited) -> Balance ${validWithdraw.wallet?.VEs} VEs, status PENDING`
     );
 
@@ -420,7 +420,7 @@ async function runAudit() {
       body: JSON.stringify({ idempotencyKey: 'AUDIT-JOIN-KEY-001' }),
     }).then((r) => r.json());
     assert(
-      joinGiveawayRes.success && joinGiveawayRes.wallet.VEs === 483,
+      joinGiveawayRes.success && joinGiveawayRes.wallet.VEs === 583,
       `Giveaway join deducts authoritative 250 VEs -> Balance ${joinGiveawayRes.wallet?.VEs} VEs`
     );
 
@@ -434,8 +434,8 @@ async function runAudit() {
       body: JSON.stringify({ idempotencyKey: 'AUDIT-JOIN-KEY-001' }),
     }).then((r) => r.json());
     assert(
-      dupJoinRes.success && dupJoinRes.alreadyJoined === true && dupJoinRes.wallet.VEs === 483,
-      'Duplicate giveaway participation returns idempotent status, preserves 1 entry in DB and maintains balance at 483 VEs'
+      dupJoinRes.success && dupJoinRes.alreadyJoined === true && dupJoinRes.wallet.VEs === 583,
+      'Duplicate giveaway participation returns idempotent status, preserves 1 entry in DB and maintains balance at 583 VEs'
     );
 
     // 23. Winner Claim Flow (Rohan Sharma)

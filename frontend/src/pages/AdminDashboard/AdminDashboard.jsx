@@ -14,6 +14,9 @@ import {
   AlertTriangle,
   Lock,
   Loader2,
+  Package,
+  Layers,
+  Sparkles,
 } from 'lucide-react';
 import {
   getAdminOverview,
@@ -30,7 +33,7 @@ import styles from './AdminDashboard.module.css';
 
 export const AdminDashboard = () => {
   const { user, isAdmin, switchAccount } = useAuth();
-  const [activeTab, setActiveTab] = useState('overview'); // 'overview' | 'fraud' | 'claims' | 'audit'
+  const [activeTab, setActiveTab] = useState('overview'); // 'overview' | 'breakdown' | 'claims' | 'fraud' | 'audit'
 
   const [overviewData, setOverviewData] = useState(null);
   const [fraudEvents, setFraudEvents] = useState([]);
@@ -39,6 +42,24 @@ export const AdminDashboard = () => {
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
   const [notice, setNotice] = useState(null);
+
+  // Status Change Confirmation Modal State
+  const [statusModal, setStatusModal] = useState({ open: false, giveawayId: null, newStatus: null });
+
+  // Winner Draw Confirmation & Results Modal State
+  const [drawModal, setDrawModal] = useState({ open: false, giveawayId: null, giveawayTitle: null });
+  const [drawResults, setDrawResults] = useState(null);
+
+  // Claim Processing Modal State
+  const [claimModal, setClaimModal] = useState({
+    open: false,
+    claim: null,
+    status: 'COMPLETED',
+    courierPartner: '',
+    trackingNumber: '',
+    voucherCode: '',
+    notes: '',
+  });
 
   const fetchAdminData = async () => {
     if (!isAdmin) {
@@ -69,47 +90,56 @@ export const AdminDashboard = () => {
     fetchAdminData();
   }, [isAdmin]);
 
-  const handleDrawWinners = async (giveawayId) => {
-    if (!window.confirm('Trigger cryptographic random winner draw for this giveaway?')) return;
+  const confirmStatusChange = async () => {
+    if (!statusModal.giveawayId || !statusModal.newStatus) return;
     setActionLoading(true);
     try {
-      const res = await triggerWinnerDraw(giveawayId);
-      setNotice({ type: 'success', message: res.message });
+      const res = await setGiveawayStatus(statusModal.giveawayId, statusModal.newStatus);
+      setNotice({ type: 'success', message: res.message || `Campaign status updated to ${statusModal.newStatus}.` });
+      setStatusModal({ open: false, giveawayId: null, newStatus: null });
       fetchAdminData();
     } catch (err) {
-      setNotice({ type: 'error', message: err.message });
+      setNotice({ type: 'error', message: err.message || 'Failed to update campaign status.' });
     } finally {
       setActionLoading(false);
     }
   };
 
-  const handleStatusChange = async (giveawayId, newStatus) => {
+  const confirmDrawWinners = async () => {
+    if (!drawModal.giveawayId) return;
     setActionLoading(true);
     try {
-      const res = await setGiveawayStatus(giveawayId, newStatus);
-      setNotice({ type: 'success', message: res.message });
+      const res = await triggerWinnerDraw(drawModal.giveawayId);
+      setDrawResults(res);
+      setNotice({ type: 'success', message: res.message || 'Winner selection executed successfully.' });
+      setDrawModal({ open: false, giveawayId: null, giveawayTitle: null });
       fetchAdminData();
     } catch (err) {
-      setNotice({ type: 'error', message: err.message });
+      setNotice({ type: 'error', message: err.message || 'Winner draw failed.' });
+      setDrawModal({ open: false, giveawayId: null, giveawayTitle: null });
     } finally {
       setActionLoading(false);
     }
   };
 
-  const handleProcessClaim = async (claimId, status, trackingOrCode) => {
+  const submitProcessClaim = async (e) => {
+    e.preventDefault();
+    if (!claimModal.claim) return;
     setActionLoading(true);
     try {
-      const payload = { status };
-      if (status === 'COMPLETED') {
-        payload.voucherCode = trackingOrCode || 'AMZ-PROMO-2026-WINNER';
-        payload.trackingNumber = trackingOrCode || 'BLUEDART-IND-9948271';
-        payload.courierPartner = 'BlueDart Express Air';
-      }
-      const res = await processClaim(claimId, payload);
-      setNotice({ type: 'success', message: res.message });
+      const payload = {
+        status: claimModal.status,
+        courierPartner: claimModal.courierPartner,
+        trackingNumber: claimModal.trackingNumber,
+        voucherCode: claimModal.voucherCode,
+        notes: claimModal.notes,
+      };
+      const res = await processClaim(claimModal.claim.claimId, payload);
+      setNotice({ type: 'success', message: res.message || 'Claim processed successfully.' });
+      setClaimModal({ open: false, claim: null, status: 'COMPLETED', courierPartner: '', trackingNumber: '', voucherCode: '', notes: '' });
       fetchAdminData();
     } catch (err) {
-      setNotice({ type: 'error', message: err.message });
+      setNotice({ type: 'error', message: err.message || 'Failed to process claim.' });
     } finally {
       setActionLoading(false);
     }
@@ -139,6 +169,7 @@ export const AdminDashboard = () => {
 
   const stats = overviewData?.stats;
   const recentGiveaways = overviewData?.recentGiveaways || [];
+  const prizeBreakdown = overviewData?.prizeBreakdown || [];
 
   return (
     <div className={styles.adminPage}>
@@ -152,11 +183,10 @@ export const AdminDashboard = () => {
             </div>
             <h1 className={styles.title}>Giveaway Management & Telemetry</h1>
             <p className={styles.subtitle}>
-              Manage giveaway events, trigger cryptographic winner draws, inspect fraud telemetry, and dispatch claims.
+              Manage giveaway lifecycles, trigger weighted winner draws, inspect fraud telemetry, and dispatch verified claims.
             </p>
           </div>
 
-          {/* Quick Refresh */}
           <button className="btn-veloop-secondary" onClick={fetchAdminData} disabled={actionLoading}>
             <RotateCcw size={16} />
             <span>Refresh Telemetry</span>
@@ -177,7 +207,7 @@ export const AdminDashboard = () => {
             <Users size={20} className={styles.purpleIcon} />
             <div className={styles.statCol}>
               <span className={styles.statLabel}>Total Members</span>
-              <span className={styles.statVal}>{stats?.totalUsers}</span>
+              <span className={styles.statVal}>{stats?.totalUsers || 0}</span>
             </div>
           </div>
 
@@ -185,15 +215,15 @@ export const AdminDashboard = () => {
             <Gift size={20} className={styles.blueIcon} />
             <div className={styles.statCol}>
               <span className={styles.statLabel}>Total Giveaways</span>
-              <span className={styles.statVal}>{stats?.totalGiveaways}</span>
+              <span className={styles.statVal}>{stats?.totalGiveaways || 0}</span>
             </div>
           </div>
 
           <div className={styles.statCard}>
             <Activity size={20} className={styles.greenIcon} />
             <div className={styles.statCol}>
-              <span className={styles.statLabel}>Active Entries</span>
-              <span className={styles.statVal}>{stats?.totalParticipations}</span>
+              <span className={styles.statLabel}>Total Entries</span>
+              <span className={styles.statVal}>{stats?.totalEntries || 0}</span>
             </div>
           </div>
 
@@ -201,7 +231,7 @@ export const AdminDashboard = () => {
             <Trophy size={20} className={styles.goldIcon} />
             <div className={styles.statCol}>
               <span className={styles.statLabel}>Winners Finalized</span>
-              <span className={styles.statVal}>{stats?.totalWinners}</span>
+              <span className={styles.statVal}>{stats?.totalWinners || 0}</span>
             </div>
           </div>
 
@@ -209,7 +239,7 @@ export const AdminDashboard = () => {
             <ShieldAlert size={20} className={styles.redIcon} />
             <div className={styles.statCol}>
               <span className={styles.statLabel}>Fraud Alerts</span>
-              <span className={styles.statVal}>{stats?.fraudAlerts}</span>
+              <span className={styles.statVal}>{stats?.fraudAlerts || 0}</span>
             </div>
           </div>
 
@@ -217,7 +247,7 @@ export const AdminDashboard = () => {
             <FileCheck size={20} className={styles.goldIcon} />
             <div className={styles.statCol}>
               <span className={styles.statLabel}>Pending Claims</span>
-              <span className={styles.statVal}>{stats?.pendingClaims}</span>
+              <span className={styles.statVal}>{stats?.pendingClaims || 0}</span>
             </div>
           </div>
         </div>
@@ -229,7 +259,14 @@ export const AdminDashboard = () => {
             onClick={() => setActiveTab('overview')}
           >
             <Gift size={16} />
-            <span>Giveaways & Draws</span>
+            <span>Campaign Controls</span>
+          </button>
+          <button
+            className={`${styles.tabBtn} ${activeTab === 'breakdown' ? styles.tabBtnActive : ''}`}
+            onClick={() => setActiveTab('breakdown')}
+          >
+            <Layers size={16} />
+            <span>Prize Breakdown</span>
           </button>
           <button
             className={`${styles.tabBtn} ${activeTab === 'claims' ? styles.tabBtnActive : ''}`}
@@ -254,7 +291,7 @@ export const AdminDashboard = () => {
           </button>
         </div>
 
-        {/* Tab 1: Giveaways & Draw Trigger */}
+        {/* Tab 1: Campaign Lifecycle & Draws */}
         {activeTab === 'overview' && (
           <div className={styles.tabContent}>
             <div className={styles.tableCard}>
@@ -263,12 +300,12 @@ export const AdminDashboard = () => {
                 <table className={styles.table}>
                   <thead>
                     <tr>
-                      <th>Giveaway Event</th>
+                      <th>Campaign</th>
                       <th>Status</th>
                       <th>Prizes</th>
                       <th>Participants</th>
                       <th>End Date</th>
-                      <th>Operational Actions</th>
+                      <th>Lifecycle & Winner Actions</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -283,36 +320,54 @@ export const AdminDashboard = () => {
                             ● {gw.status}
                           </span>
                         </td>
-                        <td>{gw.prizes?.length || 0} Prizes</td>
-                        <td>{gw.totalParticipants?.toLocaleString()}</td>
+                        <td>{gw.prizes?.length || 6} Prizes</td>
+                        <td>{gw.totalParticipants?.toLocaleString() || 0}</td>
                         <td>{new Date(gw.endAt).toLocaleDateString('en-IN')}</td>
                         <td>
                           <div className={styles.actionBtnsGroup}>
-                            {gw.status === 'ACTIVE' && (
-                              <button
-                                className={styles.actionBtnSmall}
-                                onClick={() => handleStatusChange(gw.giveawayId, 'ENDED')}
-                                disabled={actionLoading}
-                              >
-                                End Event
-                              </button>
-                            )}
-                            {gw.status === 'ENDED' && (
-                              <button
-                                className={styles.drawBtnSmall}
-                                onClick={() => handleDrawWinners(gw.giveawayId)}
-                                disabled={actionLoading}
-                              >
-                                <Play size={12} /> Draw Winners
-                              </button>
-                            )}
                             {gw.status === 'UPCOMING' && (
                               <button
                                 className={styles.actionBtnSmall}
-                                onClick={() => handleStatusChange(gw.giveawayId, 'ACTIVE')}
+                                onClick={() => setStatusModal({ open: true, giveawayId: gw.giveawayId, newStatus: 'ACTIVE' })}
                                 disabled={actionLoading}
                               >
-                                Launch Event
+                                Launch Active
+                              </button>
+                            )}
+                            {gw.status === 'ACTIVE' && (
+                              <button
+                                className={styles.actionBtnSmall}
+                                onClick={() => setStatusModal({ open: true, giveawayId: gw.giveawayId, newStatus: 'ENDED' })}
+                                disabled={actionLoading}
+                              >
+                                End Campaign
+                              </button>
+                            )}
+                            {gw.status === 'ENDED' && (
+                              <>
+                                <button
+                                  className={styles.drawBtnSmall}
+                                  onClick={() => setDrawModal({ open: true, giveawayId: gw.giveawayId, giveawayTitle: gw.title })}
+                                  disabled={actionLoading}
+                                >
+                                  <Play size={12} /> Draw Winners
+                                </button>
+                                <button
+                                  className={styles.actionBtnSmall}
+                                  onClick={() => setStatusModal({ open: true, giveawayId: gw.giveawayId, newStatus: 'ARCHIVED' })}
+                                  disabled={actionLoading}
+                                >
+                                  Archive
+                                </button>
+                              </>
+                            )}
+                            {gw.status !== 'ENDED' && (
+                              <button
+                                className={styles.drawBtnDisabled}
+                                title="Campaign must be ENDED before winners can be selected."
+                                disabled
+                              >
+                                <Lock size={12} /> Draw Locked
                               </button>
                             )}
                           </div>
@@ -326,7 +381,53 @@ export const AdminDashboard = () => {
           </div>
         )}
 
-        {/* Tab 2: Prize Claims Management */}
+        {/* Tab 2: Prize Breakdown */}
+        {activeTab === 'breakdown' && (
+          <div className={styles.tabContent}>
+            <div className={styles.tableCard}>
+              <h3 className={styles.cardHeader}>Active Campaign Prize Allocation & Entries</h3>
+              <div className={styles.tableResponsive}>
+                <table className={styles.table}>
+                  <thead>
+                    <tr>
+                      <th>Prize</th>
+                      <th>Entry Cost</th>
+                      <th>Target Winners</th>
+                      <th>Current Winners</th>
+                      <th>Distinct Users</th>
+                      <th>Total Entry Weight</th>
+                      <th>Confirmation Status</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {prizeBreakdown.map((pb) => (
+                      <tr key={pb.prizeId}>
+                        <td>
+                          <strong>{pb.name}</strong>
+                          <span className={styles.subText}>{pb.prizeId}</span>
+                        </td>
+                        <td>{pb.entryAmount} {pb.entryCurrency}</td>
+                        <td>{pb.targetWinners}</td>
+                        <td>{pb.currentWinners}</td>
+                        <td>{pb.participants}</td>
+                        <td><strong style={{ color: 'var(--brand-gold)' }}>{pb.totalEntries}</strong></td>
+                        <td>
+                          {pb.isPendingConfirmation ? (
+                            <span className={styles.drawPendingChip}>Pending Merchant Confirmation</span>
+                          ) : (
+                            <span className={styles.winnerChip}>Ready / Active</span>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Tab 3: Prize Claims */}
         {activeTab === 'claims' && (
           <div className={styles.tabContent}>
             <div className={styles.tableCard}>
@@ -371,16 +472,26 @@ export const AdminDashboard = () => {
                           </span>
                         </td>
                         <td>
-                          {claim.status !== 'COMPLETED' && (
-                            <div className={styles.actionBtnsGroup}>
-                              <button
-                                className={styles.drawBtnSmall}
-                                onClick={() => handleProcessClaim(claim.claimId, 'COMPLETED')}
-                                disabled={actionLoading}
-                              >
-                                Mark Dispatched / Fulfilled
-                              </button>
-                            </div>
+                          {claim.status !== 'COMPLETED' ? (
+                            <button
+                              className={styles.drawBtnSmall}
+                              onClick={() =>
+                                setClaimModal({
+                                  open: true,
+                                  claim,
+                                  status: 'COMPLETED',
+                                  courierPartner: claim.trackingInformation?.courierPartner || 'BlueDart Express Air',
+                                  trackingNumber: claim.trackingInformation?.trackingNumber || '',
+                                  voucherCode: claim.trackingInformation?.voucherCode || '',
+                                  notes: claim.notes || '',
+                                })
+                              }
+                              disabled={actionLoading}
+                            >
+                              <Package size={12} /> Process & Dispatch
+                            </button>
+                          ) : (
+                            <span className={styles.subText}>Fulfilled ✓</span>
                           )}
                         </td>
                       </tr>
@@ -392,7 +503,7 @@ export const AdminDashboard = () => {
           </div>
         )}
 
-        {/* Tab 3: Fraud Telemetry */}
+        {/* Tab 4: Fraud Telemetry */}
         {activeTab === 'fraud' && (
           <div className={styles.tabContent}>
             <div className={styles.tableCard}>
@@ -437,7 +548,7 @@ export const AdminDashboard = () => {
           </div>
         )}
 
-        {/* Tab 4: Audit Logs */}
+        {/* Tab 5: Audit Logs */}
         {activeTab === 'audit' && (
           <div className={styles.tabContent}>
             <div className={styles.tableCard}>
@@ -449,7 +560,7 @@ export const AdminDashboard = () => {
                       <th>Log ID</th>
                       <th>User</th>
                       <th>Action</th>
-                      <th>Amount</th>
+                      <th>Metadata</th>
                       <th>Result</th>
                       <th>Timestamp</th>
                     </tr>
@@ -462,8 +573,8 @@ export const AdminDashboard = () => {
                         <td>
                           <strong>{log.action}</strong>
                         </td>
-                        <td>
-                          {log.amount ? `${log.amount} ${log.currency}` : '—'}
+                        <td className={styles.subText}>
+                          {log.metadata?.prizeName || log.metadata?.drawRunId || JSON.stringify(log.metadata || {})}
                         </td>
                         <td>
                           <span className={`badge-status ${log.result === 'SUCCESS' ? 'badge-status-active' : 'badge-status-ended'}`}>
@@ -480,6 +591,206 @@ export const AdminDashboard = () => {
           </div>
         )}
       </div>
+
+      {/* Confirmation Modal for Lifecycle Transitions */}
+      {statusModal.open && (
+        <div className={styles.modalBackdrop} onClick={() => setStatusModal({ open: false, giveawayId: null, newStatus: null })}>
+          <div className={styles.modalCard} onClick={(e) => e.stopPropagation()}>
+            <div className={styles.modalHeader}>
+              <h3 className={styles.modalTitle}>Confirm Lifecycle Transition</h3>
+              <p className={styles.modalSubtitle}>
+                Are you sure you want to transition <strong>{statusModal.giveawayId}</strong> to <strong>{statusModal.newStatus}</strong>?
+              </p>
+            </div>
+            <p className={styles.subText}>
+              {statusModal.newStatus === 'ENDED'
+                ? 'Ending the campaign will lock new entry transactions and enable the weighted random winner selection engine.'
+                : 'This action will be recorded in the system audit log.'}
+            </p>
+            <div className={styles.modalActions}>
+              <button
+                className="btn-veloop-secondary"
+                onClick={() => setStatusModal({ open: false, giveawayId: null, newStatus: null })}
+                disabled={actionLoading}
+              >
+                Cancel
+              </button>
+              <button className="btn-veloop-gold" onClick={confirmStatusChange} disabled={actionLoading}>
+                {actionLoading ? <Loader2 size={16} className="animate-spin" /> : `Confirm & Transition`}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Confirmation Modal for Winner Draw */}
+      {drawModal.open && (
+        <div className={styles.modalBackdrop} onClick={() => setDrawModal({ open: false, giveawayId: null, giveawayTitle: null })}>
+          <div className={styles.modalCard} onClick={(e) => e.stopPropagation()}>
+            <div className={styles.modalHeader}>
+              <h3 className={styles.modalTitle}>Trigger Cryptographic Winner Draw</h3>
+              <p className={styles.modalSubtitle}>
+                You are about to run the weighted winner selection engine for <strong>{drawModal.giveawayTitle}</strong>.
+              </p>
+            </div>
+            <p className={styles.subText}>
+              • Winner probabilities are proportional to each participant's entry weight.<br />
+              • Uses Node.js crypto.randomInt() secure randomness.<br />
+              • Automatically skips pending prizes and produces an immutable audit record.
+            </p>
+            <div className={styles.modalActions}>
+              <button
+                className="btn-veloop-secondary"
+                onClick={() => setDrawModal({ open: false, giveawayId: null, giveawayTitle: null })}
+                disabled={actionLoading}
+              >
+                Cancel
+              </button>
+              <button className="btn-veloop-gold" onClick={confirmDrawWinners} disabled={actionLoading}>
+                {actionLoading ? <Loader2 size={16} className="animate-spin" /> : `Execute Winner Draw`}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Draw Results Modal */}
+      {drawResults && (
+        <div className={styles.modalBackdrop} onClick={() => setDrawResults(null)}>
+          <div className={styles.modalCard} onClick={(e) => e.stopPropagation()}>
+            <div className={styles.modalHeader}>
+              <h3 className={styles.modalTitle}>Winner Draw Results</h3>
+              <p className={styles.modalSubtitle}>
+                Run ID: <span className={styles.monoTxn}>{drawResults.drawRunId}</span> · New Winners: {drawResults.totalNewWinners}
+              </p>
+            </div>
+
+            <div className={styles.drawResultGrid}>
+              {drawResults.results?.map((res, idx) => (
+                <div key={idx} className={styles.drawResultCard}>
+                  <div className={styles.drawResultHeader}>
+                    <span className={styles.drawPrizeName}>{res.prizeName}</span>
+                    {res.status === 'SUCCESS' && <span className={styles.winnerChip}>SUCCESS ({res.winnerCount})</span>}
+                    {res.status === 'ALREADY_DRAWN' && <span className={styles.winnerChip}>ALREADY DRAWN ({res.winnerCount})</span>}
+                    {res.status === 'SKIPPED_PENDING_CONFIRMATION' && (
+                      <span className={styles.drawPendingChip}>SKIPPED PENDING</span>
+                    )}
+                    {res.status === 'FAILED_INSUFFICIENT_PARTICIPANTS' && (
+                      <span className={styles.drawFailedChip}>INSUFFICIENT USERS ({res.available}/{res.required})</span>
+                    )}
+                  </div>
+                  <p className={styles.subText}>{res.message}</p>
+                  {res.winners?.length > 0 && (
+                    <div className={styles.drawWinnersList}>
+                      {res.winners.map((w, wIdx) => (
+                        <span key={wIdx} className={styles.winnerChip}>
+                          🏆 {w.maskedUserId}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+
+            <div className={styles.modalActions}>
+              <button className="btn-veloop-gold" onClick={() => setDrawResults(null)}>
+                Close Results
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Process Claim Modal */}
+      {claimModal.open && (
+        <div className={styles.modalBackdrop} onClick={() => setClaimModal({ ...claimModal, open: false })}>
+          <div className={styles.modalCard} onClick={(e) => e.stopPropagation()}>
+            <div className={styles.modalHeader}>
+              <h3 className={styles.modalTitle}>Process Prize Fulfillment</h3>
+              <p className={styles.modalSubtitle}>
+                Claim ID: <span className={styles.monoTxn}>{claimModal.claim?.claimId}</span> ({claimModal.claim?.prizeName})
+              </p>
+            </div>
+
+            <form onSubmit={submitProcessClaim}>
+              <div className={styles.formGroup}>
+                <label className={styles.formLabel}>Target Claim Status</label>
+                <select
+                  className={styles.formSelect}
+                  value={claimModal.status}
+                  onChange={(e) => setClaimModal({ ...claimModal, status: e.target.value })}
+                >
+                  <option value="PROCESSING">PROCESSING (Verification in Progress)</option>
+                  <option value="COMPLETED">COMPLETED (Fulfilled & Dispatched)</option>
+                </select>
+              </div>
+
+              {claimModal.claim?.claimType === 'PHYSICAL' ? (
+                <>
+                  <div className={styles.formGroup}>
+                    <label className={styles.formLabel}>Courier Partner</label>
+                    <input
+                      type="text"
+                      className={styles.formInput}
+                      value={claimModal.courierPartner}
+                      onChange={(e) => setClaimModal({ ...claimModal, courierPartner: e.target.value })}
+                      placeholder="e.g. BlueDart Express Air"
+                    />
+                  </div>
+                  <div className={styles.formGroup}>
+                    <label className={styles.formLabel}>Tracking Number / AWB</label>
+                    <input
+                      type="text"
+                      className={styles.formInput}
+                      value={claimModal.trackingNumber}
+                      onChange={(e) => setClaimModal({ ...claimModal, trackingNumber: e.target.value })}
+                      placeholder="e.g. BLUEDART-IND-9948271"
+                      required={claimModal.status === 'COMPLETED'}
+                    />
+                  </div>
+                </>
+              ) : (
+                <div className={styles.formGroup}>
+                  <label className={styles.formLabel}>Gift Card Voucher Code</label>
+                  <input
+                    type="text"
+                    className={styles.formInput}
+                    value={claimModal.voucherCode}
+                    onChange={(e) => setClaimModal({ ...claimModal, voucherCode: e.target.value })}
+                    placeholder="e.g. AMZ-PROMO-2026-WINNER"
+                    required={claimModal.status === 'COMPLETED'}
+                  />
+                </div>
+              )}
+
+              <div className={styles.formGroup}>
+                <label className={styles.formLabel}>Admin Notes (Optional)</label>
+                <textarea
+                  className={styles.formTextarea}
+                  value={claimModal.notes}
+                  onChange={(e) => setClaimModal({ ...claimModal, notes: e.target.value })}
+                  placeholder="Internal fulfillment remarks..."
+                />
+              </div>
+
+              <div className={styles.modalActions}>
+                <button
+                  type="button"
+                  className="btn-veloop-secondary"
+                  onClick={() => setClaimModal({ ...claimModal, open: false })}
+                  disabled={actionLoading}
+                >
+                  Cancel
+                </button>
+                <button type="submit" className="btn-veloop-gold" disabled={actionLoading}>
+                  {actionLoading ? <Loader2 size={16} className="animate-spin" /> : `Save & Update Claim`}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
