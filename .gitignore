@@ -23,3 +23,8 @@ Thumbs.db
 .vscode/
 .idea/
 *.log
+
+# Test & Coverage Outputs
+coverage/
+*.lcov
+.nyc_output/

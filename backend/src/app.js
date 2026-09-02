@@ -27,27 +27,29 @@ app.use(
   })
 );
 
-// CORS configuration (Strict origins support)
-const isProduction = process.env.NODE_ENV === 'production';
-const allowedOrigins = [
-  process.env.CLIENT_URL,
-  !isProduction && 'http://localhost:5173',
-  !isProduction && 'http://127.0.0.1:5173',
-  !isProduction && 'http://localhost:3000',
-  !isProduction && 'http://localhost:4173',
-].filter(Boolean);
-
 app.use(
   cors({
     origin: (origin, callback) => {
-      // In development/test, allow requests with no origin (e.g. mobile apps, curl, server-to-server)
-      if (!origin && !isProduction) return callback(null, true);
-      // If client origin is explicitly whitelisted
-      if (origin && allowedOrigins.includes(origin)) return callback(null, true);
+      const currentIsProd = process.env.NODE_ENV === 'production';
+      // In development/test, or for requests without an Origin header (server-to-server, curl)
+      if (!origin) return callback(null, true);
+
+      const configuredOrigins = [
+        process.env.CLIENT_URL,
+        ...(process.env.ALLOWED_ORIGINS ? process.env.ALLOWED_ORIGINS.split(',') : []),
+        !currentIsProd && 'http://localhost:5173',
+        !currentIsProd && 'http://127.0.0.1:5173',
+        !currentIsProd && 'http://localhost:3000',
+        !currentIsProd && 'http://localhost:4173',
+      ].filter(Boolean).map((o) => o.trim());
+
+      if (configuredOrigins.includes(origin)) return callback(null, true);
+
       // In development, permit localhost loopbacks
-      if (!isProduction && origin && (origin.includes('localhost') || origin.includes('127.0.0.1'))) {
+      if (!currentIsProd && (origin.includes('localhost') || origin.includes('127.0.0.1'))) {
         return callback(null, true);
       }
+
       callback(new Error('CORS policy violation: Origin not permitted.'));
     },
     credentials: true,
@@ -68,8 +70,9 @@ if (process.env.NODE_ENV !== 'test') {
 // Health and readiness check endpoint
 app.get('/api/health', (req, res) => {
   const isMongo = mongoose.connection.readyState === 1;
+  const isProd = process.env.NODE_ENV === 'production';
 
-  if (isProduction && !isMongo) {
+  if (isProd && !isMongo) {
     return res.status(503).json({
       status: 'UNHEALTHY',
       service: 'VELOOP Rewards Core API',
@@ -80,7 +83,7 @@ app.get('/api/health', (req, res) => {
   }
 
   res.json({
-    status: isMongo ? 'HEALTHY' : (isProduction ? 'UNHEALTHY' : 'HEALTHY'),
+    status: isMongo ? 'HEALTHY' : (isProd ? 'UNHEALTHY' : 'HEALTHY'),
     service: 'VELOOP Rewards Core API',
     database: isMongo ? 'CONNECTED' : 'IN_MEMORY_FALLBACK',
     version: '1.0.0',
