@@ -40,12 +40,16 @@ export const errorHandler = (err, req, res, next) => {
   }
 
   const statusCode = err.statusCode || (res.statusCode === 200 ? 500 : res.statusCode);
+  const isClientError = statusCode >= 400 && statusCode < 500;
+
   res.status(statusCode).json({
     success: false,
     code: err.code || 'INTERNAL_SERVER_ERROR',
     message:
-      process.env.NODE_ENV === 'production'
-        ? 'An unexpected error occurred. Please try again later.'
-        : err.message || 'Server error',
+      isClientError || process.env.NODE_ENV !== 'production'
+        ? err.message || 'Server error'
+        : 'An unexpected error occurred. Please try again later.',
+    ...(err.details ? { details: err.details } : {}),
+    ...(err.details?.deficit !== undefined ? { shortfall: err.details.deficit } : {}),
   });
 };

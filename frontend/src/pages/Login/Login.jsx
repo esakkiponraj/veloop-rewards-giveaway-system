@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { User, Lock, ArrowRight, ShieldCheck, Sparkles, AlertCircle, Loader2 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext.jsx';
@@ -8,11 +8,11 @@ import styles from './Login.module.css';
 export const Login = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { login } = useAuth();
+  const { user, login, loading: authLoading } = useAuth();
 
   const queryParams = new URLSearchParams(location.search);
-  const rawReturnUrl = location.state?.from || queryParams.get('returnUrl') || '/giveaways';
-  const safeReturnUrl = sanitizeReturnUrl(rawReturnUrl, '/giveaways');
+  const rawReturnUrl = location.state?.from || queryParams.get('returnUrl') || '';
+  const safeReturnUrl = rawReturnUrl ? sanitizeReturnUrl(rawReturnUrl, '') : '';
 
   const [emailOrUsername, setEmailOrUsername] = useState('');
   const [password, setPassword] = useState('');
@@ -21,15 +21,29 @@ export const Login = () => {
 
   const isDev = import.meta.env.DEV;
 
+  // An authenticated user opening /login must be redirected away to the intended page
+  useEffect(() => {
+    if (user && !authLoading) {
+      const targetUrl = safeReturnUrl && safeReturnUrl !== '/login'
+        ? safeReturnUrl
+        : (user.role === 'admin' ? '/admin' : '/giveaways');
+      navigate(targetUrl, { replace: true });
+    }
+  }, [user, authLoading, safeReturnUrl, navigate]);
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
-    setErrorMsg('');
+    setErrorMsg(''); // Clear previous error immediately on new attempt
     try {
-      await login(emailOrUsername, password);
-      navigate(safeReturnUrl);
+      const res = await login(emailOrUsername, password);
+      setErrorMsg(''); // Clear error state on success
+      const targetUrl = safeReturnUrl && safeReturnUrl !== '/login'
+        ? safeReturnUrl
+        : (res?.user?.role === 'admin' ? '/admin' : '/giveaways');
+      navigate(targetUrl, { replace: true });
     } catch (err) {
-      setErrorMsg(err.message || 'Login failed. Please check credentials.');
+      setErrorMsg(err.message || 'Invalid email/username or password.');
     } finally {
       setLoading(false);
     }
@@ -37,11 +51,15 @@ export const Login = () => {
 
   const handleQuickLogin = async (email, defaultPassword = null) => {
     setLoading(true);
-    setErrorMsg('');
+    setErrorMsg(''); // Clear previous error immediately on new attempt
     try {
       const pwd = defaultPassword || (email === 'admin@veloop.io' ? 'admin123' : 'password123');
-      await login(email, pwd);
-      navigate(safeReturnUrl);
+      const res = await login(email, pwd);
+      setErrorMsg(''); // Clear error state on success
+      const targetUrl = safeReturnUrl && safeReturnUrl !== '/login'
+        ? safeReturnUrl
+        : (res?.user?.role === 'admin' ? '/admin' : '/giveaways');
+      navigate(targetUrl, { replace: true });
     } catch (err) {
       setErrorMsg(err.message || 'Quick login failed.');
     } finally {
@@ -161,7 +179,10 @@ export const Login = () => {
                 <input
                   type="text"
                   value={emailOrUsername}
-                  onChange={(e) => setEmailOrUsername(e.target.value)}
+                  onChange={(e) => {
+                    setEmailOrUsername(e.target.value);
+                    if (errorMsg) setErrorMsg('');
+                  }}
                   placeholder="e.g. modal.tester@example.com"
                   className={styles.input}
                   required
@@ -176,7 +197,10 @@ export const Login = () => {
                 <input
                   type="password"
                   value={password}
-                  onChange={(e) => setPassword(e.target.value)}
+                  onChange={(e) => {
+                    setPassword(e.target.value);
+                    if (errorMsg) setErrorMsg('');
+                  }}
                   placeholder="Enter password"
                   className={styles.input}
                   required

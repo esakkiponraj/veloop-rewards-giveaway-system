@@ -9,6 +9,10 @@ const connectDB = async () => {
     console.log(`[MongoDB] Connected to database: ${conn.connection.host}/${conn.connection.name}`);
     return conn;
   } catch (error) {
+    if (process.env.NODE_ENV === 'production') {
+      console.error(`[MongoDB Fatal] Production connection failure: ${error.message}`);
+      throw new Error(`Production database connection failed: ${error.message}`);
+    }
     console.warn(`[MongoDB Warning] Could not connect to MongoDB: ${error.message}`);
     console.warn(`[MongoDB Warning] Running with fallback in-memory datastore mode if local MongoDB daemon is not running.`);
     return null;

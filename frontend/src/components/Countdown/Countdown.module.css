@@ -85,3 +85,19 @@
   border-radius: 50%;
   background: #f43f5e;
 }
+
+@media (max-width: 400px) {
+  .countdownContainer {
+    gap: 4px;
+  }
+  .timeBlock {
+    min-width: 46px;
+    padding: 6px 6px;
+  }
+  .timeVal {
+    font-size: 1.1rem;
+  }
+  .timeLabel {
+    font-size: 0.58rem;
+  }
+}

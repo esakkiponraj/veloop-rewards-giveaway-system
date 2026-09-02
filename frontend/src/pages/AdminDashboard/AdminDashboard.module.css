@@ -460,3 +460,16 @@
     width: 100%;
   }
 }
+
+@media (max-width: 480px) {
+  .statsGrid {
+    grid-template-columns: 1fr;
+  }
+  .tableCard {
+    padding: 16px 12px;
+  }
+  .adminDashboard {
+    padding-top: 16px;
+    padding-bottom: 32px;
+  }
+}

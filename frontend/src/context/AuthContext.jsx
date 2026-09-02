@@ -8,9 +8,13 @@ export const AuthProvider = ({ children }) => {
   const [token, setToken] = useState(() => localStorage.getItem('veloop_auth_token') || null);
   const [loading, setLoading] = useState(true);
   const [demoAccounts, setDemoAccounts] = useState([]);
+  const hasInitializedRef = React.useRef(false);
 
   // Fetch current user or demo accounts once on mount
   const initAuth = useCallback(async () => {
+    if (hasInitializedRef.current) return;
+    hasInitializedRef.current = true;
+
     setLoading(true);
     const storedToken = localStorage.getItem('veloop_auth_token');
 
@@ -30,7 +34,6 @@ export const AuthProvider = ({ children }) => {
         setUser(null);
       }
     } else {
-      // Default to null user (visitor state) or load demo accounts
       setUser(null);
       setToken(null);
     }
@@ -56,10 +59,16 @@ export const AuthProvider = ({ children }) => {
     setLoading(true);
     try {
       const res = await apiLogin(emailOrUsername, password);
+      if (!res || !res.token) {
+        throw new Error('Authentication response did not contain a valid session token.');
+      }
       localStorage.setItem('veloop_auth_token', res.token);
       setToken(res.token);
       setUser(res.user);
       return res;
+    } catch (err) {
+      // Failed login attempt must not overwrite or corrupt valid state
+      throw err;
     } finally {
       setLoading(false);
     }

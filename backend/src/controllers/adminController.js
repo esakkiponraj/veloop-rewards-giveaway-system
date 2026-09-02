@@ -270,7 +270,9 @@ export const getAllClaims = async (req, res, next) => {
 export const processClaim = async (req, res, next) => {
   try {
     const { claimId } = req.params;
-    const { status, courierPartner, trackingNumber, voucherCode, notes } = req.body;
+    const { status, action, courierPartner, trackingNumber, voucherCode, notes, adminNotes } = req.body;
+    const targetStatus = status || action;
+    const targetNotes = notes || adminNotes;
     const adminUserId = req.user.userId;
     const isMongo = mongoose.connection.readyState === 1;
 
@@ -296,22 +298,22 @@ export const processClaim = async (req, res, next) => {
     }
 
     // Validate state transitions
-    if (status && status !== claim.status) {
+    if (targetStatus && targetStatus !== claim.status) {
       const allowedNext = VALID_CLAIM_TRANSITIONS[claim.status] || [];
-      if (!allowedNext.includes(status)) {
+      if (!allowedNext.includes(targetStatus)) {
         return res.status(400).json({
           success: false,
           code: 'INVALID_CLAIM_TRANSITION',
-          message: `Cannot transition claim status from ${claim.status} to ${status}. Allowed next states: [${allowedNext.join(', ')}]`,
+          message: `Cannot transition claim status from ${claim.status} to ${targetStatus}. Allowed next states: [${allowedNext.join(', ')}]`,
           currentStatus: claim.status,
-          requestedStatus: status,
+          requestedStatus: targetStatus,
           allowedTransitions: allowedNext,
         });
       }
-      claim.status = status;
+      claim.status = targetStatus;
     }
 
-    if (notes) claim.notes = notes.trim();
+    if (targetNotes) claim.notes = targetNotes.trim();
     if (claim.status === 'COMPLETED') claim.processedAt = new Date();
 
     if (courierPartner || trackingNumber || voucherCode) {

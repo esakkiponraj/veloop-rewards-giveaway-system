@@ -1,15 +1,44 @@
 # VELOOP Rewards — Giveaway & Rewards API Documentation
 
-This document outlines the complete REST API specification for the **VELOOP Rewards Giveaway & Rewards System**.
+Complete REST API specification for the **VELOOP Rewards Giveaway & Hardware Rewards System**.
 
-Base URL: `http://localhost:5000/api`
+**Base URL**: `http://localhost:5000/api` (Local) / `https://<your-domain>/api` (Production)
 
 ---
 
-## 1. Authentication & User Profile
+## 1. System Health & Readiness
+
+### `GET /health`
+Returns service status, database connectivity, and server timestamp. In production, returns HTTP 503 if the database is disconnected.
+
+- **Access**: Public
+- **Success Response (200 OK)**:
+```json
+{
+  "status": "HEALTHY",
+  "service": "VELOOP Rewards Core API",
+  "database": "CONNECTED",
+  "version": "1.0.0",
+  "timestamp": "2026-09-02T16:45:00.000Z"
+}
+```
+- **Service Unavailable Response (503 Service Unavailable)** *(In Production when MongoDB is down)*:
+```json
+{
+  "status": "UNHEALTHY",
+  "service": "VELOOP Rewards Core API",
+  "database": "DISCONNECTED",
+  "version": "1.0.0",
+  "timestamp": "2026-09-02T16:45:00.000Z"
+}
+```
+
+---
+
+## 2. Authentication & Session
 
 ### `POST /auth/login`
-Authenticates a user and issues a JWT bearer token.
+Authenticates a user and issues a signed JWT bearer token.
 
 - **Access**: Public (Rate-limited: 25 req/15min)
 - **Request Body**:
@@ -23,7 +52,7 @@ Authenticates a user and issues a JWT bearer token.
 ```json
 {
   "success": true,
-  "token": "eyJhbGciOiJIUzI1NiIsIn...",
+  "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
   "user": {
     "userId": "VE10842",
     "username": "Alex Vance",
@@ -39,16 +68,14 @@ Authenticates a user and issues a JWT bearer token.
 }
 ```
 - **Error Responses**:
-  - `400 VALIDATION_ERROR`: Missing email or password.
-  - `401 INVALID_CREDENTIALS`: Incorrect username or password.
-  - `403 ACCOUNT_SUSPENDED`: Account flagged for fraud violations.
+  - `401 Unauthorized`: Invalid credentials (`Invalid email/username or password`).
 
 ---
 
 ### `GET /auth/me`
-Retrieves authenticated user profile and live wallet balance.
+Fetches authoritative user profile, masked identity, and current wallet balances.
 
-- **Access**: Protected (`Bearer <JWT>`)
+- **Access**: Protected (`Authorization: Bearer <JWT>`)
 - **Success Response (200 OK)**:
 ```json
 {
@@ -63,25 +90,26 @@ Retrieves authenticated user profile and live wallet balance.
       "VEs": 850,
       "SVEs": 1200,
       "Tokens": 5000
-    },
-    "fraudRiskScore": 5
+    }
   }
 }
 ```
+- **Error Responses**:
+  - `401 Unauthorized`: Missing, invalid, or expired session token.
 
 ---
 
-## 2. Giveaways & Prizes
+## 3. Giveaways & Prize Catalogue
 
 ### `GET /giveaways/current`
-Fetches the active featured giveaway event, server timestamp, dynamic participant metrics, and recent winner announcements.
+Returns active giveaway campaign, live countdown metadata, and all linked prizes.
 
 - **Access**: Public
 - **Success Response (200 OK)**:
 ```json
 {
   "success": true,
-  "serverTime": "2026-08-25T16:30:00.000Z",
+  "serverTime": "2026-09-02T16:45:00.000Z",
   "giveaway": {
     "giveawayId": "GW-2026-08",
     "title": "Summer Rewards Megadraw 2026",
@@ -106,10 +134,10 @@ Fetches the active featured giveaway event, server timestamp, dynamic participan
   },
   "stats": {
     "activeGiveaways": 1,
-    "totalGiveaways": 3,
+    "totalGiveaways": 2,
     "totalParticipants": 8540,
     "totalPrizesWon": 1240,
-    "endsInMs": 1068300000
+    "endsInMs": 376200000
   }
 }
 ```
@@ -117,18 +145,17 @@ Fetches the active featured giveaway event, server timestamp, dynamic participan
 ---
 
 ### `GET /giveaways/prizes/:slug`
-Fetches individual prize specifications, associated giveaway rules, eligibility terms, and entry fee.
+Fetches individual prize details by slug (e.g. `iphone-15-pro`, `apple-watch`, `airpods`).
 
 - **Access**: Public
-- **Parameters**: `slug` (e.g. `iphone-15-pro`, `apple-watch`, `airpods`, `amazon-2000`)
-- **Success Response (200 OK)**: Returns full prize object, specifications array, and parent giveaway data.
+- **Success Response (200 OK)**: Full prize document, specifications array, and parent giveaway data.
 
 ---
 
-### `GET /giveaways/:id/my-status`
-Returns the authenticated user's participation status, entry timestamp, and winning status.
+### `GET /giveaways/:giveawayId/my-status` (or `/:id/my-status`)
+Returns the authenticated user's participation status, entry details, and winner status for a campaign.
 
-- **Access**: Protected (`Bearer <JWT>`)
+- **Access**: Protected (`Authorization: Bearer <JWT>`)
 - **Success Response (200 OK)**:
 ```json
 {
@@ -140,8 +167,8 @@ Returns the authenticated user's participation status, entry timestamp, and winn
     "prizeId": "PRIZE-IPHONE15",
     "entryCurrency": "VEs",
     "entryAmount": 250,
-    "joinedAt": "2026-08-25T16:32:00.000Z",
-    "transactionId": "TXN-GW-1724603520000-8F92A"
+    "joinedAt": "2026-09-02T16:45:00.000Z",
+    "transactionId": "TXN-GW-1788369616634-8F92A"
   },
   "isWinner": false,
   "wallet": {
@@ -154,19 +181,21 @@ Returns the authenticated user's participation status, entry timestamp, and winn
 
 ---
 
-### `POST /giveaways/:id/join`
-**Authoritative join operation.** Deducts virtual currency atomically, creates an immutable participation entry, writes a financial transaction log, and evaluates anti-abuse risk scores.
+### `POST /giveaways/:giveawayId/prizes/:prizeId/join` (or `/:id/join`)
+Authoritative participation entry. Atomically debits virtual currency, validates server-time deadline, creates an immutable participation entry, and records financial transaction log.
 
-- **Access**: Protected (`Bearer <JWT>`, Rate-limited: 10 req/min)
-- **Headers**: `x-device-hash` (Anti-abuse signal)
+- **Access**: Protected (`Authorization: Bearer <JWT>`, Rate-limited: 10 req/min)
+- **Headers**:
+  - `x-idempotency-key`: Client-generated unique key (e.g. `KEY-JOIN-<timestamp>`)
+  - `x-device-hash`: Anti-abuse client signal
 - **Request Body**:
 ```json
 {
-  "prizeId": "PRIZE-IPHONE15",
-  "idempotencyKey": "IDEMP-VE10842-GW202608-01"
+  "giveawayId": "GW-2026-08",
+  "prizeId": "PRIZE-IPHONE15"
 }
 ```
-*(Note: Client does NOT send amount or currency; backend determines authoritative fees from database).*
+*(Note: Fees and currency are server-authoritative and determined by the prize configuration in DB).*
 
 - **Success Response (200 OK)**:
 ```json
@@ -181,16 +210,8 @@ Returns the authenticated user's participation status, entry timestamp, and winn
     "prizeName": "iPhone 15 Pro (128GB)",
     "entryCurrency": "VEs",
     "entryAmount": 250,
-    "transactionId": "TXN-GW-1724603520000-8F92A",
-    "joinedAt": "2026-08-25T16:32:00.000Z"
-  },
-  "transaction": {
-    "transactionId": "TXN-GW-1724603520000-8F92A",
-    "amount": 250,
-    "currency": "VEs",
-    "balanceBefore": 850,
-    "balanceAfter": 600,
-    "createdAt": "2026-08-25T16:32:00.000Z"
+    "transactionId": "TXN-GW-1788369616634-8F92A",
+    "joinedAt": "2026-09-02T16:45:00.000Z"
   },
   "wallet": {
     "VEs": 600,
@@ -200,66 +221,181 @@ Returns the authenticated user's participation status, entry timestamp, and winn
 }
 ```
 - **Error Responses**:
-  - `400 INSUFFICIENT_VE_BALANCE`: User does not possess enough VEs.
-  - `400 GIVEAWAY_ENDED`: Server time has passed giveaway deadline.
-  - `409 ALREADY_PARTICIPATING`: One entry limit per user per event.
-  - `403 PARTICIPATION_BLOCKED`: Anti-abuse threshold exceeded.
+  - `400 INSUFFICIENT_VE_BALANCE`: Balance lower than entry requirement. Returns `shortfall` and `details.deficit`.
+  - `400 GIVEAWAY_ENDED`: Server time has passed campaign deadline.
+  - `400 ALREADY_PARTICIPATING`: One entry limit per user per prize.
+  - `401 LOGIN_REQUIRED`: Unauthenticated join attempt.
+  - `403 PARTICIPATION_BLOCKED`: Anti-fraud threshold exceeded.
 
 ---
 
-## 3. Winner Draws & Prize Claims
+### `GET /giveaways/user/my-entries`
+Retrieves all historical participations and winning claims for the authenticated user.
 
-### `GET /giveaways/:id/winners`
-Returns the verified winner list for a completed giveaway.
-*(If giveaway is ACTIVE, returns an empty array with `isLive: true` to prevent false winner leaks).*
+- **Access**: Protected (`Authorization: Bearer <JWT>`)
+- **Success Response (200 OK)**: Returns user participations, prize details, and winning status.
 
 ---
 
-### `POST /giveaways/:id/claim`
-Submits prize fulfillment information for a verified winner.
+## 4. Winner Announcements & Prize Claims
 
-- **Access**: Protected (`Bearer <JWT>`, Authenticated User must match winner record)
+### `GET /giveaways/previous/winners`
+Returns previous winners across completed campaigns with zero sensitive PII.
+
+- **Access**: Public
+- **Success Response (200 OK)**:
+```json
+{
+  "success": true,
+  "winners": [
+    {
+      "winnerId": "66ce335a720911001",
+      "giveawayId": "GW-2026-07",
+      "prizeName": "Apple Watch Series 9",
+      "prizeType": "PHYSICAL",
+      "maskedUserId": "VE****25",
+      "status": "DELIVERED"
+    }
+  ]
+}
+```
+
+---
+
+### `POST /giveaways/:giveawayId/claim` (or `/:id/claim`)
+Submits prize fulfillment details for an authenticated winner. Transitions winner status from `SELECTED` to `CLAIM_SUBMITTED`.
+
+- **Access**: Protected (Authenticated user must own the winner record)
 - **Physical Prize Request Body (iPhone / Watch / AirPods)**:
 ```json
 {
-  "prizeId": "PRIZE-APPLEWATCH9",
-  "fullName": "Rohan Sharma",
-  "phoneNumber": "9876543210",
-  "addressLine": "Flat 402, Lotus Towers, Andheri West",
-  "city": "Mumbai",
-  "state": "Maharashtra",
-  "pinCode": "400053"
+  "giveawayId": "GW-2026-08",
+  "prizeId": "PRIZE-IPHONE15",
+  "claimDetails": {
+    "fullName": "Alex Vance",
+    "phoneNumber": "+919876543210",
+    "addressLine": "402 Skyline Towers, MG Road",
+    "city": "Bengaluru",
+    "state": "Karnataka",
+    "pinCode": "560001"
+  }
 }
 ```
-- **Amazon Gift Card Request Body**:
+- **Digital Gift Card Request Body (Amazon / Vouchers)**:
 ```json
 {
+  "giveawayId": "GW-2026-08",
   "prizeId": "PRIZE-AMAZON2000",
-  "emailAddress": "rohan.winner@example.com"
+  "claimDetails": {
+    "emailAddress": "alex.vance@example.com"
+  }
 }
 ```
 - **Success Response (200 OK)**:
 ```json
 {
   "success": true,
-  "message": "Prize claim successfully submitted! Our reward fulfillment team will process your dispatch.",
+  "message": "Claim details submitted successfully!",
   "claim": {
-    "claimId": "CLM-1724603900-X7Q2",
+    "claimId": "CLM-1788369677738-M1O06",
+    "giveawayId": "GW-2026-08",
+    "prizeId": "PRIZE-IPHONE15",
     "status": "SUBMITTED",
-    "submittedAt": "2026-08-25T16:35:00.000Z"
+    "submittedAt": "2026-09-02T16:50:00.000Z"
+  }
+}
+```
+- **Error Responses**:
+  - `400 CLAIM_DEADLINE_EXPIRED`: Submitted after the 7-calendar-day deadline. Winner status persisted as `EXPIRED`.
+  - `400 MISSING_SHIPPING_FIELDS`: Incomplete shipping details for physical prize.
+  - `400 INVALID_EMAIL_ADDRESS`: Invalid email for digital voucher.
+  - `403 CLAIM_NOT_ALLOWED`: Requesting user is not the winner.
+
+---
+
+### `GET /giveaways/:giveawayId/my-claim` (or `/:id/my-claim`)
+Retrieves existing claim record for the authenticated user on a giveaway.
+
+- **Access**: Protected
+- **Success Response (200 OK)**: Returns claim record with current fulfillment status.
+
+---
+
+## 5. Admin Control Portal (`/api/admin/*`)
+
+All admin endpoints require `role: 'admin'`. Non-admin requests are rejected with HTTP 403 Forbidden.
+
+### `GET /admin/overview`
+Dashboard metrics: total participants, total prizes awarded, pending claims, and active giveaways.
+
+- **Access**: Admin only
+
+---
+
+### `POST /admin/giveaways/:id/draw-winners`
+Triggers weighted random winner selection without replacement using Node.js `crypto.randomInt()`.
+
+- **Access**: Admin only
+- **Preflight Requirement**: Campaign must be in `ENDED` status. Each eligible prize must have at least as many distinct participants as `winnerCount`.
+- **Success Response (200 OK)**:
+```json
+{
+  "success": true,
+  "message": "Winner selection completed. 6 new winner(s) assigned.",
+  "drawRunId": "DRAW-1788369616634-921",
+  "totalNewWinners": 6,
+  "results": [...]
+}
+```
+- **Error Responses**:
+  - `400 GIVEAWAY_NOT_ENDED`: Attempting to draw on an ACTIVE or UPCOMING campaign.
+  - `409 INSUFFICIENT_ELIGIBLE_PARTICIPANTS`: Distinct participants < needed winners. Atomic safety: 0 winners created.
+
+---
+
+### `PUT /admin/claims/:claimId/process` (and `POST`)
+Transitions claim status through the 4-stage fulfillment lifecycle.
+
+- **Access**: Admin only
+- **Allowed Transitions**:
+  - `SUBMITTED → PROCESSING` (Winner status transitions to `VERIFIED`)
+  - `PROCESSING → COMPLETED` (Winner status transitions to `DELIVERED`)
+  - Backward transitions rejected with HTTP 400 `INVALID_CLAIM_TRANSITION`
+- **Request Body (Fulfillment Dispatch)**:
+```json
+{
+  "action": "COMPLETED",
+  "courierPartner": "BlueDart Express",
+  "trackingNumber": "BD-992817462",
+  "adminNotes": "Hardware dispatched with signature verification."
+}
+```
+- **Success Response (200 OK)**:
+```json
+{
+  "success": true,
+  "message": "Claim CLM-1788369677738-M1O06 successfully updated to status COMPLETED.",
+  "claim": {
+    "claimId": "CLM-1788369677738-M1O06",
+    "status": "COMPLETED",
+    "trackingInformation": {
+      "courierPartner": "BlueDart Express",
+      "trackingNumber": "BD-992817462"
+    }
   }
 }
 ```
 
 ---
 
-## 4. Admin Operations (`/api/admin/*`)
-Requires `role: 'admin'`.
+### `GET /admin/claims`
+Lists all submitted winner claims with status filters and fulfillment details.
 
-- `GET /admin/overview`: Summary metrics (Total users, entries, fraud alerts, pending claims).
-- `POST /admin/giveaways/:id/draw-winners`: Triggers cryptographic random winner draw.
-- `POST /admin/giveaways/:id/set-status`: Changes event lifecycle (`UPCOMING`, `ACTIVE`, `ENDED`, `ARCHIVED`).
-- `GET /admin/fraud-events`: Telemetry log of detected abuse signals and risk scores.
-- `GET /admin/claims`: List of submitted prize claims with shipping/email details.
-- `POST /admin/claims/:claimId/process`: Updates claim status to `PROCESSING` or `COMPLETED` and attaches tracking numbers.
-- `GET /admin/audit-logs`: Immutable system audit ledger.
+- **Access**: Admin only
+
+---
+
+### `GET /admin/audit-logs`
+Immutable system audit ledger for draws, status transitions, and claims. Contains zero sensitive PII.
+
+- **Access**: Admin only

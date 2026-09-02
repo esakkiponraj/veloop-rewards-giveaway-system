@@ -78,8 +78,8 @@ export const processPrizeClaim = async ({
     submittedAt: new Date(),
   };
 
-  const shipping = claimData?.shippingAddress || claimData?.physicalDetails || claimData || {};
-  const digital = claimData?.giftCardDetails || claimData || {};
+  const shipping = claimData?.claimDetails || claimData?.shippingAddress || claimData?.physicalDetails || claimData || {};
+  const digital = claimData?.claimDetails || claimData?.giftCardDetails || claimData || {};
 
   if (prizeType === 'PHYSICAL') {
     const fullName = shipping.fullName;

@@ -21,6 +21,7 @@ router.post('/giveaways/:id/set-status', setGiveawayStatus);
 router.get('/fraud-events', getFraudEvents);
 router.get('/claims', getAllClaims);
 router.post('/claims/:claimId/process', processClaim);
+router.put('/claims/:claimId/process', processClaim);
 router.get('/audit-logs', getAuditLogs);
 
 export default router;

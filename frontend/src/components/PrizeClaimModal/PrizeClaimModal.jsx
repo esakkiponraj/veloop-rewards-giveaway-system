@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Gift, MapPin, Mail, Phone, User, CheckCircle2, Clock, AlertCircle, ShieldCheck, Loader2 } from 'lucide-react';
 import { claimPrize, getMyClaim } from '../../services/giveawayApi.js';
@@ -22,7 +22,59 @@ export const PrizeClaimModal = ({ isOpen, onClose, winnerRecord, onClaimSubmitte
   const [errorMsg, setErrorMsg] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
 
+  const modalRef = useRef(null);
+  const triggerElementRef = useRef(null);
+
   const isPhysical = winnerRecord?.prizeType === 'PHYSICAL';
+
+  // Manage body scroll and focus restoration
+  useEffect(() => {
+    if (isOpen) {
+      triggerElementRef.current = document.activeElement;
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+      if (triggerElementRef.current && typeof triggerElementRef.current.focus === 'function') {
+        triggerElementRef.current.focus();
+      }
+    }
+    return () => {
+      document.body.style.overflow = '';
+    };
+  }, [isOpen]);
+
+  // Focus trap & Escape key handler
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape' && !loading) {
+        onClose();
+        return;
+      }
+
+      if (e.key === 'Tab' && modalRef.current) {
+        const focusable = modalRef.current.querySelectorAll(
+          'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+        );
+        if (focusable.length === 0) return;
+
+        const first = focusable[0];
+        const last = focusable[focusable.length - 1];
+
+        if (e.shiftKey && document.activeElement === first) {
+          e.preventDefault();
+          last.focus();
+        } else if (!e.shiftKey && document.activeElement === last) {
+          e.preventDefault();
+          first.focus();
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, loading, onClose]);
 
   // Load existing claim status if already submitted
   useEffect(() => {
@@ -97,6 +149,7 @@ export const PrizeClaimModal = ({ isOpen, onClose, winnerRecord, onClaimSubmitte
     <AnimatePresence>
       <div className={styles.modalBackdrop} onClick={onClose}>
         <motion.div
+          ref={modalRef}
           className={styles.modalCard}
           onClick={(e) => e.stopPropagation()}
           initial={{ opacity: 0, scale: 0.94, y: 15 }}
@@ -105,19 +158,20 @@ export const PrizeClaimModal = ({ isOpen, onClose, winnerRecord, onClaimSubmitte
           transition={{ duration: 0.2 }}
           role="dialog"
           aria-modal="true"
+          aria-labelledby="claim-modal-title"
         >
           {/* Close button */}
           <button className={styles.closeBtn} onClick={onClose} aria-label="Close modal">
-            <X size={18} />
+            <X size={18} aria-hidden="true" />
           </button>
 
           {/* Header */}
           <div className={styles.modalHeader}>
             <div className={styles.claimBadge}>
-              <Gift size={14} />
+              <Gift size={14} aria-hidden="true" />
               <span>OFFICIAL PRIZE CLAIM PORTAL</span>
             </div>
-            <h3 className={styles.modalTitle}>Claim Your {winnerRecord.prizeName}</h3>
+            <h3 className={styles.modalTitle} id="claim-modal-title">Claim Your {winnerRecord.prizeName}</h3>
             <p className={styles.modalSubtitle}>
               Winner Verification ID: <strong className={styles.maskedId}>{winnerRecord.maskedUserId}</strong> · Verified Draw
             </p>
