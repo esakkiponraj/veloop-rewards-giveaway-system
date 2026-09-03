@@ -151,42 +151,6 @@
   outline-offset: 3px;
 }
 
-/* Metrics Row */
-.metricsRow {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 1.5rem;
-  width: 100%;
-  max-width: 800px;
-  background: rgba(17, 20, 38, 0.6);
-  border: 1px solid rgba(148, 163, 184, 0.12);
-  border-radius: 16px;
-  padding: 1.5rem;
-  backdrop-filter: blur(8px);
-}
-
-.metricItem {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 0.35rem;
-}
-
-.metricValue {
-  font-size: 1.85rem;
-  font-weight: 800;
-  color: #FFFFFF;
-  letter-spacing: -0.02em;
-}
-
-.metricLabel {
-  font-size: 0.8rem;
-  font-weight: 600;
-  color: var(--text-muted, #94A3B8);
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-}
-
 /* ==========================================================================
    2. SECTION HEADERS
    ========================================================================== */
@@ -865,10 +829,6 @@
   .heroSubtitle {
     font-size: 1rem;
   }
-  .metricsRow {
-    grid-template-columns: 1fr;
-    gap: 1rem;
-  }
   .campaignHeader {
     flex-direction: column;
     align-items: flex-start;
@@ -903,9 +863,6 @@
 
 @media (max-width: 360px) {
   .heroTitle {
-    font-size: 1.5rem;
-  }
-  .metricValue {
     font-size: 1.5rem;
   }
   .prizeGrid {

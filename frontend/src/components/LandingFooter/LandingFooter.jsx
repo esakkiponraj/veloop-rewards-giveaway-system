@@ -24,12 +24,11 @@ export const LandingFooter = () => {
               </div>
             </Link>
             <p className={styles.brandDesc}>
-              The transparent rewards and giveaway platform. Turn daily platform activity into
-              verified entries for premium tech, gadgets, and digital vouchers.
+              Digital rewards and giveaway platform. Turn daily platform activity into
+              entries for authentic tech, gadgets, and digital vouchers with zero monetary gambling.
             </p>
             <div className={styles.statusIndicator}>
-              <span className={styles.statusDot} aria-hidden="true" />
-              <span>CSPRNG Selection Verified • All Systems Operational</span>
+              <span>Weighted CSPRNG Engine • Transparent Prize Rules</span>
             </div>
           </div>
 
@@ -65,7 +64,7 @@ export const LandingFooter = () => {
             </ul>
           </div>
 
-          {/* Security & Verification Col */}
+          {/* Security & Integrity Col */}
           <div className={styles.linkCol}>
             <h2 className={styles.colTitle}>Trust & Integrity</h2>
             <ul className={styles.linkList}>
@@ -75,7 +74,7 @@ export const LandingFooter = () => {
               </li>
               <li className={styles.securityItem}>
                 <Lock size={16} color="#38BDF8" />
-                <span>Double-Spend Prevention</span>
+                <span>Compound Double-Spend Defense</span>
               </li>
               <li className={styles.securityItem}>
                 <Award size={16} color="#FBBF24" />
@@ -88,7 +87,7 @@ export const LandingFooter = () => {
             </ul>
           </div>
 
-          {/* Rules & Transparency Col */}
+          {/* Rules & Compliance Col */}
           <div className={styles.linkCol}>
             <h2 className={styles.colTitle}>Compliance</h2>
             <ul className={styles.linkList}>
@@ -99,14 +98,16 @@ export const LandingFooter = () => {
               </li>
               <li>
                 <a href="#trust" className={styles.link}>
-                  Draw Transparency Policy
+                  Platform Integrity Policy
                 </a>
               </li>
               <li>
-                <span className={styles.link}>No Purchase Necessary</span>
+                <a href="#active-giveaway" className={styles.link}>
+                  Campaign Rules & Deadlines
+                </a>
               </li>
-              <li>
-                <span className={styles.link}>Terms & Participation Rules</span>
+              <li className={styles.securityItem}>
+                <span>No Purchase Necessary</span>
               </li>
             </ul>
           </div>
@@ -118,11 +119,11 @@ export const LandingFooter = () => {
             &copy; {new Date().getFullYear()} VELOOP Rewards. All rights reserved. Zero real money gambling.
           </p>
           <div className={styles.bottomLegal}>
-            <span>Official Rules</span>
+            <span>Engagement-Based Rewards</span>
             <span>•</span>
-            <span>Privacy Standard</span>
+            <span>Privacy Preserved</span>
             <span>•</span>
-            <span>Fair Play Guarantee</span>
+            <span>Auditable State Architecture</span>
           </div>
         </div>
       </div>

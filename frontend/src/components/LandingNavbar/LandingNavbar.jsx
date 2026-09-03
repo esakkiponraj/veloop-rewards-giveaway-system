@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { Menu, X, ArrowRight, ShieldCheck, Sparkles } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext.jsx';
@@ -8,27 +8,68 @@ export const LandingNavbar = () => {
   const { user, isAdmin, isAuthenticated } = useAuth();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
-  // Close drawer on ESC key press
-  useEffect(() => {
-    const handleKeyDown = (e) => {
-      if (e.key === 'Escape' && mobileMenuOpen) {
-        setMobileMenuOpen(false);
-      }
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [mobileMenuOpen]);
+  const toggleBtnRef = useRef(null);
+  const drawerRef = useRef(null);
 
-  // Lock body scroll when mobile menu is open
+  // Close drawer and restore focus to trigger button
+  const handleCloseMenu = () => {
+    setMobileMenuOpen(false);
+    toggleBtnRef.current?.focus();
+  };
+
+  // Lock body scroll when mobile menu is open; release on close or unmount
   useEffect(() => {
     if (mobileMenuOpen) {
       document.body.style.overflow = 'hidden';
     } else {
-      document.body.style.overflow = 'unset';
+      document.body.style.overflow = '';
     }
     return () => {
-      document.body.style.overflow = 'unset';
+      document.body.style.overflow = '';
     };
+  }, [mobileMenuOpen]);
+
+  // Trap focus (Tab and Shift+Tab) & listen for Escape key while drawer is open
+  useEffect(() => {
+    if (!mobileMenuOpen) return;
+
+    const drawerEl = drawerRef.current;
+    if (!drawerEl) return;
+
+    const focusableElements = drawerEl.querySelectorAll(
+      'a[href], button:not([disabled]), [tabindex]:not([tabindex="-1"])'
+    );
+    const firstElement = focusableElements[0];
+    const lastElement = focusableElements[focusableElements.length - 1];
+
+    // Focus the first interactive link on open
+    firstElement?.focus();
+
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        handleCloseMenu();
+      } else if (e.key === 'Tab') {
+        if (focusableElements.length === 0) {
+          e.preventDefault();
+          return;
+        }
+        if (e.shiftKey) {
+          if (document.activeElement === firstElement) {
+            e.preventDefault();
+            lastElement?.focus();
+          }
+        } else {
+          if (document.activeElement === lastElement) {
+            e.preventDefault();
+            firstElement?.focus();
+          }
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
   }, [mobileMenuOpen]);
 
   const navLinks = [
@@ -96,12 +137,14 @@ export const LandingNavbar = () => {
             </>
           )}
 
-          {/* Mobile Hamburger Button */}
+          {/* Mobile Hamburger Button with Ref & Controls */}
           <button
+            ref={toggleBtnRef}
             type="button"
             className={styles.mobileToggle}
             onClick={() => setMobileMenuOpen((prev) => !prev)}
             aria-expanded={mobileMenuOpen}
+            aria-controls="mobile-navigation-drawer"
             aria-label={mobileMenuOpen ? 'Close Navigation Menu' : 'Open Navigation Menu'}
           >
             {mobileMenuOpen ? <X size={22} /> : <Menu size={22} />}
@@ -109,16 +152,23 @@ export const LandingNavbar = () => {
         </div>
       </div>
 
-      {/* Mobile Drawer */}
+      {/* Mobile Drawer with Focus Trap */}
       {mobileMenuOpen && (
-        <div className={styles.mobileDrawer} role="dialog" aria-modal="true" aria-label="Mobile Navigation">
+        <div
+          id="mobile-navigation-drawer"
+          ref={drawerRef}
+          className={styles.mobileDrawer}
+          role="dialog"
+          aria-modal="true"
+          aria-label="Mobile Navigation Drawer"
+        >
           <ul className={styles.mobileNavList}>
             {navLinks.map((item) => (
               <li key={item.label}>
                 <a
                   href={item.href}
                   className={styles.mobileNavLink}
-                  onClick={() => setMobileMenuOpen(false)}
+                  onClick={handleCloseMenu}
                 >
                   {item.label}
                 </a>
@@ -128,7 +178,7 @@ export const LandingNavbar = () => {
               <Link
                 to="/giveaways"
                 className={styles.mobileNavLink}
-                onClick={() => setMobileMenuOpen(false)}
+                onClick={handleCloseMenu}
               >
                 Giveaway Hub
               </Link>
@@ -141,7 +191,7 @@ export const LandingNavbar = () => {
                 <Link
                   to="/admin"
                   className={styles.ctaBtn}
-                  onClick={() => setMobileMenuOpen(false)}
+                  onClick={handleCloseMenu}
                 >
                   <ShieldCheck size={16} />
                   <span>Admin Console</span>
@@ -150,7 +200,7 @@ export const LandingNavbar = () => {
                 <Link
                   to="/giveaways"
                   className={styles.ctaBtn}
-                  onClick={() => setMobileMenuOpen(false)}
+                  onClick={handleCloseMenu}
                 >
                   <Sparkles size={16} />
                   <span>Open Rewards Portal</span>
@@ -161,14 +211,14 @@ export const LandingNavbar = () => {
                 <Link
                   to="/login"
                   className={styles.signInBtn}
-                  onClick={() => setMobileMenuOpen(false)}
+                  onClick={handleCloseMenu}
                 >
                   Sign In
                 </Link>
                 <Link
                   to="/giveaways"
                   className={styles.ctaBtn}
-                  onClick={() => setMobileMenuOpen(false)}
+                  onClick={handleCloseMenu}
                 >
                   <span>Explore Giveaways</span>
                   <ArrowRight size={15} />

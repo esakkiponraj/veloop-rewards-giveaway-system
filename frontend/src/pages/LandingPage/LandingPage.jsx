@@ -33,7 +33,7 @@ export const LandingPage = () => {
   const [winners, setWinners] = useState([]);
   const [timeLeft, setTimeLeft] = useState({ days: 0, hours: 0, minutes: 0, seconds: 0 });
 
-  // Fetch real data from public endpoints
+  // Fetch real data from public endpoints; fail cleanly with zero fallback mock data
   const loadPlatformData = useCallback(async () => {
     setLoading(true);
     setError(null);
@@ -43,7 +43,7 @@ export const LandingPage = () => {
         getAllPreviousWinners(),
       ]);
 
-      if (giveawayRes && giveawayRes.success) {
+      if (giveawayRes && giveawayRes.success && giveawayRes.giveaway) {
         setGiveawayData(giveawayRes);
       } else {
         throw new Error('Could not retrieve active giveaway campaign data.');
@@ -51,10 +51,14 @@ export const LandingPage = () => {
 
       if (winnersRes && winnersRes.success && Array.isArray(winnersRes.winners)) {
         setWinners(winnersRes.winners);
+      } else {
+        setWinners([]);
       }
     } catch (err) {
       console.error('Failed to load landing page data:', err);
-      setError(err.message || 'Unable to load real-time campaign data. Please try again.');
+      setError(err.message || 'Unable to connect to the rewards backend. Please check network status and retry.');
+      setGiveawayData(null);
+      setWinners([]);
     } finally {
       setLoading(false);
     }
@@ -64,7 +68,7 @@ export const LandingPage = () => {
     loadPlatformData();
   }, [loadPlatformData]);
 
-  // Real-time countdown timer to giveaway.endAt
+  // Real-time countdown timer directly to giveaway.endAt from API
   useEffect(() => {
     const endAtDate = giveawayData?.giveaway?.endAt;
     if (!endAtDate) return;
@@ -89,33 +93,32 @@ export const LandingPage = () => {
   }, [giveawayData?.giveaway?.endAt]);
 
   const activeGiveaway = giveawayData?.giveaway;
-  const stats = giveawayData?.stats;
   const prizes = activeGiveaway?.prizes || [];
 
   const faqs = [
     {
       q: 'How are giveaway winners selected?',
-      a: 'Winners are chosen using a cryptographically secure weighted pseudorandom algorithm (Node.js crypto.randomInt). Your entries directly correspond to your selection weight without replacement, guaranteeing transparent and verifiable odds.',
+      a: 'Winners are chosen using a cryptographically secure pseudorandom algorithm (Node.js crypto.randomInt). Your entries directly correspond to your selection weight without replacement, ensuring proportional odds.',
     },
     {
       q: 'Do I need to spend real money to participate?',
-      a: 'No! VELOOP operates on a 100% engagement-reward model. You earn VEs (Velocity Entries) and Tokens through daily check-ins, sponsored tasks, and platform activity. No purchase or deposit is ever required.',
+      a: 'No. VELOOP operates on a 100% engagement-based rewards model. You earn VEs (Velocity Entries) and Tokens through platform daily check-ins, sponsored tasks, and activity with zero monetary deposits.',
     },
     {
       q: 'How do I claim my prize if I win?',
-      a: 'When you win, your account portal displays a "Claim Your Prize" notification in My Entries. Physical items require confirming your delivery address, while digital vouchers (such as Amazon cards) are delivered directly to your account.',
+      a: 'Selected winners can review their claim notification in My Entries. Physical items require confirming your delivery address, while digital vouchers are delivered directly to your account portal.',
     },
     {
-      q: 'What happens if a winner does not claim their prize?',
-      a: 'All selected winners have a strict 7-day claim window. If a winner fails to complete verification or declines the prize, an audited and transparent redraw is triggered to select a new eligible participant.',
+      q: 'What happens if a winner does not claim their prize within 7 days?',
+      a: 'All selected winners have a strict 7-day claim window to submit required claim details and confirm receipt. Unclaimed prizes expire strictly after this 7-day period.',
     },
     {
       q: 'How does VELOOP prevent cheating or bot accounts?',
-      a: 'Our platform implements multi-factor device fingerprinting, IP reputation filtering, rate-limiting, and an automated fraud risk engine. Accounts engaging in suspicious clustering or botting are automatically disqualified.',
+      a: 'Our platform implements multi-factor device hashing, IP reputation filtering, rate-limiting, and an automated fraud risk engine. Accounts engaging in suspicious clustering or automation are flagged and restricted.',
     },
     {
       q: 'How is user privacy protected in public draw results?',
-      a: 'We strictly protect participant privacy. Winner announcements, recent winners tickers, and transparency receipts display only masked account identifiers (e.g., VE****42). Your real name, email, and contact details are never public.',
+      a: 'Winner announcements and public lists display only masked account identifiers (e.g., VE****42). Your real name, email, and private contact information are never displayed publicly.',
     },
   ];
 
@@ -132,7 +135,7 @@ export const LandingPage = () => {
             <div className={styles.badgeWrap}>
               <div className={styles.liveBadge}>
                 <span className={styles.livePulse} aria-hidden="true" />
-                <span>Live Rewards Engine • Verifiable CSPRNG Draws</span>
+                <span>Live Rewards Platform • Weighted CSPRNG Draws</span>
               </div>
             </div>
 
@@ -142,8 +145,8 @@ export const LandingPage = () => {
             </h1>
 
             <p className={styles.heroSubtitle}>
-              VELOOP converts your attention and daily check-ins into verified entries for iPhones,
-              smartwatches, audio gear, and shopping vouchers. Built with atomic integrity, transparent
+              VELOOP converts your attention and daily check-ins into verified entries for electronics,
+              wearables, and shopping vouchers. Built with atomic balance integrity, transparent
               weighted draws, and zero real-money gambling.
             </p>
 
@@ -171,35 +174,13 @@ export const LandingPage = () => {
                 </Link>
               )}
             </div>
-
-            {/* Live Metrics Row from Real API */}
-            {stats && (
-              <div className={styles.metricsRow} aria-label="Live Platform Metrics">
-                <div className={styles.metricItem}>
-                  <span className={styles.metricValue}>
-                    {stats.totalParticipants ? stats.totalParticipants.toLocaleString() : '8,540'}
-                  </span>
-                  <span className={styles.metricLabel}>Total Verified Entries</span>
-                </div>
-                <div className={styles.metricItem}>
-                  <span className={styles.metricValue}>
-                    {stats.totalPrizesWon ? stats.totalPrizesWon.toLocaleString() : '1,240'}
-                  </span>
-                  <span className={styles.metricLabel}>Prizes Awarded to Date</span>
-                </div>
-                <div className={styles.metricItem}>
-                  <span className={styles.metricValue}>100%</span>
-                  <span className={styles.metricLabel}>CSPRNG Audit Verified</span>
-                </div>
-              </div>
-            )}
           </div>
         </section>
 
         {/* Loading / Error States for Live Campaign Data */}
         {loading && (
           <div className={styles.stateContainer}>
-            <CustomLoader message="Loading live giveaway catalogue and current campaign..." />
+            <CustomLoader message="Loading active giveaway catalogue and current campaign..." />
           </div>
         )}
 
@@ -217,18 +198,18 @@ export const LandingPage = () => {
         )}
 
         {/* ==================================================================
-            2. ACTIVE GIVEAWAY PREVIEW
+            2. ACTIVE GIVEAWAY PREVIEW (DIRECT API DATA ONLY)
             ================================================================== */}
         {!loading && !error && activeGiveaway && (
           <section id="active-giveaway" className={styles.sectionContainer} aria-labelledby="active-giveaway-heading">
             <div className={styles.sectionHeader}>
-              <span className={styles.sectionBadge}>FEATURED CAMPAIGN</span>
+              <span className={styles.sectionBadge}>ACTIVE CAMPAIGN</span>
               <h2 id="active-giveaway-heading" className={styles.sectionTitle}>
-                Live Featured Giveaway
+                {activeGiveaway.title}
               </h2>
-              <p className={styles.sectionSubtitle}>
-                Current active prize catalogue. Exchange your VEs and Tokens before the deadline closes.
-              </p>
+              {activeGiveaway.subtitle && (
+                <p className={styles.sectionSubtitle}>{activeGiveaway.subtitle}</p>
+              )}
             </div>
 
             <div className={styles.activeGiveawayCard}>
@@ -238,16 +219,18 @@ export const LandingPage = () => {
                 <div>
                   <div className={styles.campaignStatus}>
                     <span className={styles.livePulse} aria-hidden="true" />
-                    <span>STATUS: {activeGiveaway.status}</span>
+                    <span>CAMPAIGN STATUS: {activeGiveaway.status}</span>
                   </div>
                   <h3 className={styles.campaignTitle}>{activeGiveaway.title}</h3>
-                  <p style={{ color: 'var(--text-secondary, #CBD5E1)', margin: '0.4rem 0 0', fontSize: '0.95rem' }}>
-                    {activeGiveaway.subtitle}
-                  </p>
+                  {activeGiveaway.description && (
+                    <p style={{ color: 'var(--text-secondary, #CBD5E1)', margin: '0.4rem 0 0', fontSize: '0.95rem' }}>
+                      {activeGiveaway.description}
+                    </p>
+                  )}
                 </div>
 
-                {/* Real-time Countdown */}
-                <div className={styles.countdownWrap} aria-label="Time Remaining">
+                {/* Real-time Countdown from activeGiveaway.endAt */}
+                <div className={styles.countdownWrap} aria-label="Time Remaining in Campaign">
                   <div className={styles.countdownUnit}>
                     <span className={styles.countdownValue}>{String(timeLeft.days).padStart(2, '0')}</span>
                     <span className={styles.countdownLabel}>Days</span>
@@ -267,11 +250,13 @@ export const LandingPage = () => {
                 </div>
               </div>
 
-              {/* Prize Grid */}
+              {/* Prize Grid (Directly from activeGiveaway.prizes) */}
               <div className={styles.prizeGrid}>
                 {prizes.map((prize) => (
                   <article key={prize._id || prize.prizeId} className={styles.prizeCard}>
-                    <span className={styles.prizeBadge}>{prize.prizeType || 'PHYSICAL'}</span>
+                    {prize.prizeType && (
+                      <span className={styles.prizeBadge}>{prize.prizeType}</span>
+                    )}
 
                     <div className={styles.prizeImageWrap}>
                       <img
@@ -284,20 +269,28 @@ export const LandingPage = () => {
 
                     <div className={styles.prizeInfo}>
                       <h4 className={styles.prizeName}>{prize.name}</h4>
-                      <span className={styles.prizeValue}>Retail Value: {prize.retailValue || '$999'}</span>
+                      {prize.marketValue && (
+                        <span className={styles.prizeValue}>Market Value: {prize.marketValue}</span>
+                      )}
                     </div>
 
                     <div className={styles.prizeMeta}>
-                      <span>Units: {prize.totalUnits || 1} Available</span>
                       <span>
-                        Cost: {prize.entryFeeVEs ? `${prize.entryFeeVEs} VEs` : `${prize.entryFeeTokens} Tokens`}
+                        {prize.winnerCount != null
+                          ? `${prize.winnerCount} ${prize.winnerCount === 1 ? 'Prize' : 'Prizes'}`
+                          : '1 Prize'}
+                      </span>
+                      <span>
+                        {prize.entryAmount != null
+                          ? `${prize.entryAmount} ${prize.entryCurrency || 'VEs'}`
+                          : 'Free Entry'}
                       </span>
                     </div>
 
                     <Link
                       to={`/giveaway/${prize.slug || activeGiveaway.slug}`}
                       className={styles.prizeActionBtn}
-                      aria-label={`View details and enter draw for ${prize.name}`}
+                      aria-label={`View prize details and enter for ${prize.name}`}
                     >
                       <span>View Prize & Enter</span>
                       <ExternalLink size={14} />
@@ -314,12 +307,12 @@ export const LandingPage = () => {
             ================================================================== */}
         <section id="how-it-works" className={styles.sectionContainer} aria-labelledby="how-heading">
           <div className={styles.sectionHeader}>
-            <span className={styles.sectionBadge}>STEP-BY-STEP PROCESS</span>
+            <span className={styles.sectionBadge}>REWARDS WORKFLOW</span>
             <h2 id="how-heading" className={styles.sectionTitle}>
               How VELOOP Works
             </h2>
             <p className={styles.sectionSubtitle}>
-              From simple daily check-ins to unboxing premium tech at your doorstep in four verified stages.
+              From simple daily check-ins to receiving verified rewards at your doorstep in four stages.
             </p>
           </div>
 
@@ -331,8 +324,8 @@ export const LandingPage = () => {
               </div>
               <h3 className={styles.stepTitle}>Earn Activity Points</h3>
               <p className={styles.stepDesc}>
-                Log in daily, complete sponsored micro-tasks, and watch interactive partner videos to accumulate
-                VEs, SVEs, and platform Tokens with zero financial outlay.
+                Log in daily, complete sponsored tasks, and engage with platform features to accumulate
+                VEs, SVEs, and platform Tokens without monetary deposits.
               </p>
             </div>
 
@@ -343,8 +336,8 @@ export const LandingPage = () => {
               </div>
               <h3 className={styles.stepTitle}>Select Your Prize</h3>
               <p className={styles.stepDesc}>
-                Explore the active catalogue featuring authentic flagship electronics, wearable health tech, and
-                instant retail vouchers from trusted partners.
+                Explore the active catalogue featuring electronics, wearable fitness tech, and
+                instant retail vouchers from trusted merchants.
               </p>
             </div>
 
@@ -355,8 +348,8 @@ export const LandingPage = () => {
               </div>
               <h3 className={styles.stepTitle}>Join Weighted Draws</h3>
               <p className={styles.stepDesc}>
-                Lock in your entry tickets using your balance. Our CSPRNG engine weights your selection odds
-                proportionally while preventing race conditions or double-spending.
+                Lock in your entry tickets using your balance. Our CSPRNG engine weights selection odds
+                proportionally to verified entry counts without replacement.
               </p>
             </div>
 
@@ -367,7 +360,7 @@ export const LandingPage = () => {
               </div>
               <h3 className={styles.stepTitle}>Claim & Receive</h3>
               <p className={styles.stepDesc}>
-                Winners verify their claim in their dashboard within 7 days. Digital codes arrive instantly;
+                Winners verify their claim in their dashboard within 7 days. Digital codes arrive directly;
                 physical items are tracked door-to-door with courier telemetry.
               </p>
             </div>
@@ -379,12 +372,12 @@ export const LandingPage = () => {
             ================================================================== */}
         <section id="currencies" className={styles.sectionContainer} aria-labelledby="currency-heading">
           <div className={styles.sectionHeader}>
-            <span className={styles.sectionBadge}>REWARD ECOSYSTEM</span>
+            <span className={styles.sectionBadge}>CURRENCY ECOSYSTEM</span>
             <h2 id="currency-heading" className={styles.sectionTitle}>
               Understanding Platform Currencies
             </h2>
             <p className={styles.sectionSubtitle}>
-              Three specialized units tailored for engagement, milestone achievements, and draw participation.
+              Three specialized units tailored for engagement, streak milestones, and draw participation.
             </p>
           </div>
 
@@ -398,12 +391,12 @@ export const LandingPage = () => {
                 <span className={styles.currencySymbol}>STANDARD REWARD UNIT</span>
               </div>
               <p className={styles.currencyDesc}>
-                The primary currency for entering flagship tech giveaways. Earned through daily check-in streaks,
+                The primary currency for entering tech giveaways. Earned through daily check-in streaks,
                 ad engagement, and milestone rewards.
               </p>
               <ul className={styles.currencyPointers}>
                 <li className={styles.currencyPointer}>
-                  <Zap size={14} color="#FBBF24" /> Used for standard and high-tier hardware draws
+                  <Zap size={14} color="#FBBF24" /> Used for standard and featured hardware draws
                 </li>
                 <li className={styles.currencyPointer}>
                   <Zap size={14} color="#FBBF24" /> Non-transferable between accounts
@@ -425,7 +418,7 @@ export const LandingPage = () => {
               </p>
               <ul className={styles.currencyPointers}>
                 <li className={styles.currencyPointer}>
-                  <Zap size={14} color="#C084FC" /> Reserved for grand prizes & exclusive campaigns
+                  <Zap size={14} color="#C084FC" /> Reserved for grand prizes & special campaigns
                 </li>
                 <li className={styles.currencyPointer}>
                   <Zap size={14} color="#C084FC" /> Awarded on 7-day & 30-day streak milestones
@@ -439,10 +432,10 @@ export const LandingPage = () => {
               </div>
               <div className={styles.currencyHeader}>
                 <h3 className={styles.currencyName}>Activity Tokens</h3>
-                <span className={styles.currencySymbol}>INSTANT UTILITY UNIT</span>
+                <span className={styles.currencySymbol}>UTILITY REWARD UNIT</span>
               </div>
               <p className={styles.currencyDesc}>
-                High-volume platform tokens earned from task completions and mini-games. Used for digital gift card
+                Platform tokens earned from task completions and mini-games. Used for digital gift card
                 draws and instant reward redemptions.
               </p>
               <ul className={styles.currencyPointers}>
@@ -458,16 +451,16 @@ export const LandingPage = () => {
         </section>
 
         {/* ==================================================================
-            5. TRUST & FAIRNESS SECTION
+            5. TRUST & INTEGRITY ARCHITECTURE
             ================================================================== */}
         <section id="trust" className={styles.sectionContainer} aria-labelledby="trust-heading">
           <div className={styles.sectionHeader}>
-            <span className={styles.sectionBadge}>SECURITY ARCHITECTURE</span>
+            <span className={styles.sectionBadge}>SYSTEM INTEGRITY</span>
             <h2 id="trust-heading" className={styles.sectionTitle}>
               Fairness, Integrity & Transparency
             </h2>
             <p className={styles.sectionSubtitle}>
-              Rigorous engineering principles protect draw integrity, user balances, and privacy at every layer.
+              Rigorous engineering principles protect draw mechanics, user balances, and privacy at every layer.
             </p>
           </div>
 
@@ -493,7 +486,7 @@ export const LandingPage = () => {
                 <h3 className={styles.trustTitle}>Compound Double-Spend Defense</h3>
                 <p className={styles.trustDesc}>
                   MongoDB compound unique indexes on (userId, giveawayId, prizeId) enforce strict transactional
-                  deduplication. Double entries or wallet corruptions are impossible.
+                  deduplication. Double entries or balance corruptions are blocked at the database layer.
                 </p>
               </div>
             </div>
@@ -505,7 +498,7 @@ export const LandingPage = () => {
               <div className={styles.trustText}>
                 <h3 className={styles.trustTitle}>Masked Identity Privacy</h3>
                 <p className={styles.trustDesc}>
-                  Public audit logs and winner announcements use sanitized identifiers (e.g., VE****25). Your
+                  Public winner announcements use sanitized identifiers (e.g., VE****25). Your
                   private email, real user ID, and physical address are strictly confidential.
                 </p>
               </div>
@@ -516,10 +509,10 @@ export const LandingPage = () => {
                 <Clock size={24} />
               </div>
               <div className={styles.trustText}>
-                <h3 className={styles.trustTitle}>7-Day Claim Cutoff & Redraws</h3>
+                <h3 className={styles.trustTitle}>7-Day Claim Window</h3>
                 <p className={styles.trustDesc}>
-                  Prizes must be claimed within 7 days of selection. Unclaimed prizes trigger an audited redraw
-                  workflow rather than being forfeited into platform reserves.
+                  Selected winners are granted 7 days to complete delivery or voucher verification in their member portal.
+                  Claims expire strictly upon reaching the 7-day cutoff.
                 </p>
               </div>
             </div>
@@ -527,16 +520,16 @@ export const LandingPage = () => {
         </section>
 
         {/* ==================================================================
-            6. RECENT WINNERS (REAL API ONLY)
+            6. RECENT WINNERS (DIRECT API DATA ONLY)
             ================================================================== */}
         <section id="winners" className={styles.sectionContainer} aria-labelledby="winners-heading">
           <div className={styles.sectionHeader}>
-            <span className={styles.sectionBadge}>VERIFIED RESULTS</span>
+            <span className={styles.sectionBadge}>PREVIOUS CAMPAIGNS</span>
             <h2 id="winners-heading" className={styles.sectionTitle}>
               Recent Verified Winners
             </h2>
             <p className={styles.sectionSubtitle}>
-              Live selection records from our previous campaign draws. All identities are masked for user privacy.
+              Selection records from our previous campaign draws. All identifiers are masked for user privacy.
             </p>
           </div>
 
@@ -551,7 +544,7 @@ export const LandingPage = () => {
                     <span className={styles.winnerMaskedId}>{w.maskedUserId || 'VE****00'}</span>
                     <span className={styles.winnerPrize}>{w.prizeName || 'Verified Reward'}</span>
                     <span className={styles.winnerDate}>
-                      {w.selectedAt ? new Date(w.selectedAt).toLocaleDateString() : 'Draw Complete'}
+                      {w.selectedAt ? new Date(w.selectedAt).toLocaleDateString() : 'Draw Concluded'}
                     </span>
                   </div>
                 </div>
@@ -560,7 +553,7 @@ export const LandingPage = () => {
           ) : (
             <div className={styles.noWinnersNotice}>
               <Trophy size={32} style={{ marginBottom: '0.75rem', color: '#FBBF24' }} />
-              <p>Previous giveaway winner archives are being compiled for the upcoming transparency ledger.</p>
+              <p>No previous giveaway winners to display at this time.</p>
             </div>
           )}
         </section>
@@ -570,12 +563,12 @@ export const LandingPage = () => {
             ================================================================== */}
         <section id="faq" className={styles.sectionContainer} aria-labelledby="faq-heading">
           <div className={styles.sectionHeader}>
-            <span className={styles.sectionBadge}>QUESTIONS & CLARIFICATIONS</span>
+            <span className={styles.sectionBadge}>CLARIFICATIONS</span>
             <h2 id="faq-heading" className={styles.sectionTitle}>
               Frequently Asked Questions
             </h2>
             <p className={styles.sectionSubtitle}>
-              Clear answers regarding our entry mechanics, claim processing, and fairness guarantees.
+              Answers regarding our entry mechanics, claim processing, and fairness guarantees.
             </p>
           </div>
 
@@ -598,11 +591,10 @@ export const LandingPage = () => {
         <section className={styles.sectionContainer} aria-labelledby="cta-heading">
           <div className={styles.ctaBanner}>
             <h2 id="cta-heading" className={styles.ctaTitle}>
-              Ready to Claim Your Place in the Draw?
+              Ready to Explore Active Giveaways?
             </h2>
             <p className={styles.ctaSubtitle}>
-              Join thousands of participants turning everyday platform engagement into authentic tech and premium
-              shopping vouchers today.
+              Turn everyday platform engagement into tech and shopping vouchers today.
             </p>
 
             <div className={styles.heroActions}>
@@ -612,7 +604,7 @@ export const LandingPage = () => {
               </Link>
               {!isAuthenticated && (
                 <Link to="/login" className={styles.secondaryBtn}>
-                  <span>Sign In to Your Account</span>
+                  <span>Sign In to VELOOP</span>
                 </Link>
               )}
             </div>
