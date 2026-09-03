@@ -94,6 +94,9 @@ export const LandingPage = () => {
 
   const activeGiveaway = giveawayData?.giveaway;
   const prizes = activeGiveaway?.prizes || [];
+  const validWinners = winners.filter(
+    (w) => w && w.maskedUserId && w.prizeName && w.selectedAt
+  );
 
   const faqs = [
     {
@@ -260,7 +263,7 @@ export const LandingPage = () => {
 
                     <div className={styles.prizeImageWrap}>
                       <img
-                        src={prize.image || '/assets/prizes/iphone15pro.svg'}
+                        src={prize.image || '/assets/veloop-giftbox.svg'}
                         alt={prize.name}
                         className={styles.prizeImage}
                         loading="lazy"
@@ -274,27 +277,35 @@ export const LandingPage = () => {
                       )}
                     </div>
 
-                    <div className={styles.prizeMeta}>
-                      <span>
-                        {prize.winnerCount != null
-                          ? `${prize.winnerCount} ${prize.winnerCount === 1 ? 'Prize' : 'Prizes'}`
-                          : '1 Prize'}
-                      </span>
-                      <span>
-                        {prize.entryAmount != null
-                          ? `${prize.entryAmount} ${prize.entryCurrency || 'VEs'}`
-                          : 'Free Entry'}
-                      </span>
-                    </div>
+                    {(prize.winnerCount != null || (prize.entryAmount != null && prize.entryCurrency)) && (
+                      <div className={styles.prizeMeta}>
+                        {prize.winnerCount != null && (
+                          <span>
+                            {prize.winnerCount} {prize.winnerCount === 1 ? 'Prize' : 'Prizes'}
+                          </span>
+                        )}
+                        {prize.entryAmount != null && prize.entryCurrency && (
+                          <span>
+                            {prize.entryAmount} {prize.entryCurrency}
+                          </span>
+                        )}
+                      </div>
+                    )}
 
-                    <Link
-                      to={`/giveaway/${prize.slug || activeGiveaway.slug}`}
-                      className={styles.prizeActionBtn}
-                      aria-label={`View prize details and enter for ${prize.name}`}
-                    >
-                      <span>View Prize & Enter</span>
-                      <ExternalLink size={14} />
-                    </Link>
+                    {prize.slug ? (
+                      <Link
+                        to={`/giveaway/${prize.slug}`}
+                        className={styles.prizeActionBtn}
+                        aria-label={`View prize details and enter for ${prize.name}`}
+                      >
+                        <span>View Prize & Enter</span>
+                        <ExternalLink size={14} />
+                      </Link>
+                    ) : (
+                      <span className={styles.prizeActionDisabled} aria-disabled="true">
+                        <span>Details Available in Portal</span>
+                      </span>
+                    )}
                   </article>
                 ))}
               </div>
@@ -533,18 +544,18 @@ export const LandingPage = () => {
             </p>
           </div>
 
-          {winners.length > 0 ? (
+          {validWinners.length > 0 ? (
             <div className={styles.winnersGrid}>
-              {winners.slice(0, 8).map((w, idx) => (
+              {validWinners.slice(0, 8).map((w, idx) => (
                 <div key={w.winnerId || idx} className={styles.winnerCard}>
                   <div className={styles.winnerAvatar} aria-hidden="true">
-                    {w.maskedUserId ? w.maskedUserId.slice(-2) : 'VE'}
+                    {w.maskedUserId.slice(-2)}
                   </div>
                   <div className={styles.winnerInfo}>
-                    <span className={styles.winnerMaskedId}>{w.maskedUserId || 'VE****00'}</span>
-                    <span className={styles.winnerPrize}>{w.prizeName || 'Verified Reward'}</span>
+                    <span className={styles.winnerMaskedId}>{w.maskedUserId}</span>
+                    <span className={styles.winnerPrize}>{w.prizeName}</span>
                     <span className={styles.winnerDate}>
-                      {w.selectedAt ? new Date(w.selectedAt).toLocaleDateString() : 'Draw Concluded'}
+                      {new Date(w.selectedAt).toLocaleDateString()}
                     </span>
                   </div>
                 </div>
