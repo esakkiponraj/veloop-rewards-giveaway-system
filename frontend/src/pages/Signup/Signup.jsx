@@ -74,14 +74,14 @@ export const Signup = () => {
       return;
     }
 
-    if (formData.password.length < 8) {
-      setErrorMsg('Password must be at least 8 characters long.');
+    if (formData.password.length < 10) {
+      setErrorMsg('Password must be at least 10 characters long.');
       return;
     }
 
-    // Enforce 72-byte safe limit for bcrypt
+    // Authoritative 72-byte safe limit for bcrypt
     if (new TextEncoder().encode(formData.password).length > 72) {
-      setErrorMsg('Password must not exceed 72 bytes.');
+      setErrorMsg('Password exceeds maximum length of 72 UTF-8 bytes.');
       return;
     }
 
@@ -244,14 +244,14 @@ export const Signup = () => {
               name="password"
               value={formData.password}
               onChange={handleChange}
-              placeholder="Minimum 8 characters"
+              placeholder="Minimum 10 characters"
               className={styles.input}
               disabled={loading}
               required
               autoComplete="new-password"
             />
           </div>
-          <span className={styles.fieldHint}>Minimum 8 characters</span>
+          <span className={styles.fieldHint}>Minimum 10 characters, maximum 72 UTF-8 bytes</span>
         </div>
 
         {/* Confirm Password */}
@@ -290,7 +290,7 @@ export const Signup = () => {
           />
           <label htmlFor="signup-terms" className={styles.termsLabel}>
             I accept the <a href="#trust" className={styles.termsLink}>Platform Rules</a> and confirm
-            I understand VELOOP uses an engagement-based reward system with zero real-money deposits.
+            I understand VELOOP uses an engagement-based reward system with no cash entry fee.
           </label>
         </div>
 

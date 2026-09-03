@@ -25,7 +25,7 @@ export const LandingFooter = () => {
             </Link>
             <p className={styles.brandDesc}>
               Digital rewards and giveaway platform. Turn daily platform activity into
-              entries for authentic tech, gadgets, and digital vouchers with zero monetary gambling.
+              entries for authentic tech, gadgets, and digital vouchers with no cash entry fee.
             </p>
             <div className={styles.statusIndicator}>
               <span>Weighted CSPRNG Engine • Transparent Prize Rules</span>
@@ -116,7 +116,7 @@ export const LandingFooter = () => {
         {/* Bottom Bar */}
         <div className={styles.bottomBar}>
           <p className={styles.copyright}>
-            &copy; {new Date().getFullYear()} VELOOP Rewards. All rights reserved. Zero real money gambling.
+            &copy; {new Date().getFullYear()} VELOOP Rewards. All rights reserved. No cash entry fee.
           </p>
           <div className={styles.bottomLegal}>
             <span>Engagement-Based Rewards</span>

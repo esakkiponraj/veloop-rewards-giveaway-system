@@ -127,6 +127,11 @@ export const repo = {
     return u;
   },
 
+  getNextUserId: async () => {
+    const { getNextUserId } = await import('../services/userIdService.js');
+    return await getNextUserId();
+  },
+
   findUserById: async (userId) => {
     if (isMongoConnected()) {
       return await User.findOne({ userId }).select('-password');

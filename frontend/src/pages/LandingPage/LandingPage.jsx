@@ -150,7 +150,7 @@ export const LandingPage = () => {
             <p className={styles.heroSubtitle}>
               VELOOP converts your attention and daily check-ins into verified entries for electronics,
               wearables, and shopping vouchers. Built with atomic balance integrity, transparent
-              weighted draws, and zero real-money gambling.
+              weighted draws, and no cash entry fee.
             </p>
 
             <div className={styles.heroActions}>

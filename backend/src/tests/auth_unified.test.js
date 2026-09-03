@@ -10,20 +10,25 @@ import mongoose from 'mongoose';
 import app from '../app.js';
 import User from '../models/User.js';
 import Counter from '../models/Counter.js';
+import { seedDatabase } from '../utils/seedData.js';
 import { setGoogleTokenVerifierForTesting } from '../services/googleAuthService.js';
 import { getNextUserId } from '../services/userIdService.js';
 import { sanitizeReturnUrl } from '../../../frontend/src/utils/urlSanitizer.js';
+import { getSafeTestDbConfig } from '../config/testDbConfig.js';
 
 async function runUnifiedAuthSuite() {
   console.log('====================================================');
   console.log('🛡️ VELOOP REWARDS — PHASE 5B UNIFIED AUTH TEST SUITE');
   console.log('====================================================\n');
 
-  const mongoUri = process.env.MONGO_URI;
-  await mongoose.connect(mongoUri, { serverSelectionTimeoutMS: 5000 });
+  // Enforce test database isolation and reject NODE_ENV=production
+  const { testUri, testDbName, maskedUri } = getSafeTestDbConfig();
+  console.log(`[Test DB Isolation] Connecting to: ${maskedUri} (Database: "${testDbName}")`);
+  await mongoose.connect(testUri, { serverSelectionTimeoutMS: 5000 });
 
-  // Sync schema indexes (including unique sparse googleId and username)
+  // Sync schema indexes and seed canonical test profiles in isolated database
   await User.syncIndexes();
+  await seedDatabase();
 
   let server = null;
   let API_BASE = process.env.TEST_API_URL;
@@ -52,7 +57,6 @@ async function runUnifiedAuthSuite() {
   }
 
   // Scoped test identifiers
-  const TEST_PREFIX = 'VE-P5B';
   const testEmail1 = 've-p5b-user1@test.veloop.io';
   const testUsername1 = 've_p5b_tester1';
   const testGoogleEmail = 've-p5b-google@test.veloop.io';
@@ -69,9 +73,45 @@ async function runUnifiedAuthSuite() {
 
   try {
     // -----------------------------------------------------------------------
-    // [SECTION 1] Successful Local Registration & Zero Balances
+    // [SECTION 1] Privileged Fields Rejection (HTTP 400 Defense)
     // -----------------------------------------------------------------------
-    console.log('[SECTION 1] Testing Local Registration & Zero Balances...');
+    console.log('[SECTION 1] Testing Privileged Fields Rejection...');
+
+    const privilegedPayloads = [
+      { field: 'role', payload: { role: 'admin' } },
+      { field: 'wallet', payload: { wallet: { VEs: 1000, SVEs: 1000, Tokens: 5000 } } },
+      { field: 'isEmailVerified', payload: { isEmailVerified: true } },
+      { field: 'googleId', payload: { googleId: 'injected-google-id' } },
+      { field: 'authProviders', payload: { authProviders: ['ADMIN'] } },
+      { field: 'isAdmin', payload: { isAdmin: true } },
+      { field: 'fraudRiskScore', payload: { fraudRiskScore: 0 } },
+    ];
+
+    for (const testCase of privilegedPayloads) {
+      const rejRes = await fetch(`${API_BASE}/auth/register`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: 'Injection Tester',
+          username: `inj_${testCase.field}`,
+          email: `inj_${testCase.field}@test.veloop.io`,
+          password: 'ValidPassword123!',
+          confirmPassword: 'ValidPassword123!',
+          acceptTerms: true,
+          ...testCase.payload,
+        }),
+      });
+      const rejData = await rejRes.json();
+      assert(
+        rejRes.status === 400 && rejData.code === 'PRIVILEGED_FIELD_REJECTED',
+        `Payload containing privileged field "${testCase.field}" rejected with HTTP 400 PRIVILEGED_FIELD_REJECTED`
+      );
+    }
+
+    // -----------------------------------------------------------------------
+    // [SECTION 2] Valid Local Registration, Zero Balances & Terms Tracking
+    // -----------------------------------------------------------------------
+    console.log('\n[SECTION 2] Testing Valid Local Registration & Terms Metadata...');
     const regRes = await fetch(`${API_BASE}/auth/register`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -79,20 +119,16 @@ async function runUnifiedAuthSuite() {
         name: 'Phase 5B Tester',
         username: testUsername1,
         email: testEmail1,
-        password: 'Password123!',
+        password: 'Password123!', // 12 chars >= 10 chars
         confirmPassword: 'Password123!',
         acceptTerms: true,
-        // Role injection attempt:
-        role: 'admin',
-        // Balance injection attempt:
-        wallet: { VEs: 9999, SVEs: 9999, Tokens: 9999 },
       }),
     });
 
     const regData = await regRes.json();
     assert(regRes.status === 201, 'Local registration returns HTTP 201', regData);
     assert(regData.success === true && regData.token, 'Registration returns valid session token');
-    assert(regData.user.role === 'user', 'Injected role="admin" was strictly rejected; role is "user"');
+    assert(regData.user.role === 'user', 'New user role is strictly "user"');
     assert(
       regData.user.wallet.VEs === 0 &&
       regData.user.wallet.SVEs === 0 &&
@@ -101,12 +137,18 @@ async function runUnifiedAuthSuite() {
     );
     assert(regData.user.authProviders.includes('LOCAL'), 'User authProviders contains LOCAL');
     assert(regData.user.isEmailVerified === false, 'Local signup sets isEmailVerified: false');
+    assert(regData.user.termsVersion === '2026.1', 'User document persists termsVersion: "2026.1"');
+    assert(!!regData.user.termsAcceptedAt, 'User document persists termsAcceptedAt timestamp');
     assert(regData.redirectUrl === '/giveaways', 'Registration returns redirectUrl: "/giveaways"');
 
+    // Verify read-only in DB that googleId is completely omitted (not saved as null)
+    const dbUser = await User.findOne({ email: testEmail1 }).lean();
+    assert(dbUser.googleId === undefined, 'Local user document completely omits googleId (not null)');
+
     // -----------------------------------------------------------------------
-    // [SECTION 2] Duplicate Email & Username Defenses
+    // [SECTION 3] Duplicate Email & Username Defenses
     // -----------------------------------------------------------------------
-    console.log('\n[SECTION 2] Testing Duplicate Rejections...');
+    console.log('\n[SECTION 3] Testing Duplicate Rejections...');
     const dupEmailRes = await fetch(`${API_BASE}/auth/register`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -134,20 +176,21 @@ async function runUnifiedAuthSuite() {
     assert(dupUserRes.status === 409, 'Duplicate username returns HTTP 409 conflict');
 
     // -----------------------------------------------------------------------
-    // [SECTION 3] Password Policy & Bcrypt Max Length Defenses
+    // [SECTION 4] Password Policy: 10 chars min, 72 bytes max, Terms required
     // -----------------------------------------------------------------------
-    console.log('\n[SECTION 3] Testing Password Validations...');
+    console.log('\n[SECTION 4] Testing Password Validations & Terms Requirement...');
+    // 9 characters (< 10)
     const shortPwRes = await fetch(`${API_BASE}/auth/register`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         username: 'user_short_pw',
         email: 'short_pw@test.veloop.io',
-        password: '123',
+        password: 'Short1234', // 9 characters
         acceptTerms: true,
       }),
     });
-    assert(shortPwRes.status === 400, 'Password < 8 chars rejected with HTTP 400');
+    assert(shortPwRes.status === 400, 'Password < 10 chars rejected with HTTP 400 WEAK_PASSWORD');
 
     // Create 75-byte string to test bcrypt safe limit
     const longPassword = 'A'.repeat(75);
@@ -164,10 +207,24 @@ async function runUnifiedAuthSuite() {
     const longPwData = await longPwRes.json();
     assert(longPwRes.status === 400 && longPwData.code === 'PASSWORD_TOO_LONG', 'Password > 72 bytes rejected with HTTP 400 PASSWORD_TOO_LONG');
 
+    // Terms not accepted
+    const termsRes = await fetch(`${API_BASE}/auth/register`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        username: 'user_no_terms',
+        email: 'no_terms@test.veloop.io',
+        password: 'ValidPassword123!',
+        acceptTerms: false,
+      }),
+    });
+    const termsData = await termsRes.json();
+    assert(termsRes.status === 400 && termsData.code === 'TERMS_NOT_ACCEPTED', 'Registration without terms rejected with HTTP 400 TERMS_NOT_ACCEPTED');
+
     // -----------------------------------------------------------------------
-    // [SECTION 4] Concurrency-Safe Sequential User IDs
+    // [SECTION 5] Concurrency-Safe Sequential User IDs
     // -----------------------------------------------------------------------
-    console.log('\n[SECTION 4] Testing Concurrent User ID Generation...');
+    console.log('\n[SECTION 5] Testing Concurrent User ID Generation...');
     const concurrentIds = await Promise.all([
       getNextUserId(),
       getNextUserId(),
@@ -183,9 +240,9 @@ async function runUnifiedAuthSuite() {
     );
 
     // -----------------------------------------------------------------------
-    // [SECTION 5] Google Auth: Signature Verification & Unverified Email
+    // [SECTION 6] Google Auth: Signature Verification & Unverified Email
     // -----------------------------------------------------------------------
-    console.log('\n[SECTION 5] Testing Google Token Validation...');
+    console.log('\n[SECTION 6] Testing Google Token Validation...');
     const makeTestGoogleToken = (payload) =>
       `test-google-token:${Buffer.from(JSON.stringify(payload)).toString('base64')}`;
 
@@ -217,9 +274,9 @@ async function runUnifiedAuthSuite() {
     );
 
     // -----------------------------------------------------------------------
-    // [SECTION 6] Google Auth: New User Registration & Zero Balances
+    // [SECTION 7] Google Auth: New User Registration & Zero Balances
     // -----------------------------------------------------------------------
-    console.log('\n[SECTION 6] Testing New Google User Registration...');
+    console.log('\n[SECTION 7] Testing New Google User Registration...');
     const newGoogleRes = await fetch(`${API_BASE}/auth/google`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -245,9 +302,9 @@ async function runUnifiedAuthSuite() {
     assert(newGoogleData.user?.isEmailVerified === true, 'Google signup with verified email sets isEmailVerified: true');
 
     // -----------------------------------------------------------------------
-    // [SECTION 7] Safe Existing Account Linking & Conflict Defenses
+    // [SECTION 8] Safe Existing Account Linking & Conflict Defenses
     // -----------------------------------------------------------------------
-    console.log('\n[SECTION 7] Testing Account Linking & Google ID Conflicts...');
+    console.log('\n[SECTION 8] Testing Account Linking & Google ID Conflicts...');
     // Existing local user testEmail1 links their verified Google account
     const testGoogleId2 = 'google-sub-link-999';
     const linkRes = await fetch(`${API_BASE}/auth/google`, {
@@ -256,7 +313,7 @@ async function runUnifiedAuthSuite() {
       body: JSON.stringify({
         idToken: makeTestGoogleToken({
           sub: testGoogleId2,
-          email: testEmail1, // Matches testEmail1 created in Section 1
+          email: testEmail1, // Matches testEmail1 created in Section 2
           email_verified: true,
           name: 'Phase 5B Linked User',
         }),
@@ -287,11 +344,40 @@ async function runUnifiedAuthSuite() {
       'Conflicting Google ID attempt rejected with HTTP 409 GOOGLE_ACCOUNT_CONFLICT'
     );
 
+    // Attempt to link an already-linked Google ID (testGoogleId2) to another user
+    const secondUserEmail = 've-p5b-second@test.veloop.io';
+    await User.create({
+      userId: await getNextUserId(),
+      username: 've_p5b_second',
+      email: secondUserEmail,
+      password: 'Password123!',
+      maskedId: 'VE****99',
+      role: 'user',
+      authProviders: ['LOCAL'],
+      isEmailVerified: false,
+    });
+
+    const duplicateGoogleIdRes = await fetch(`${API_BASE}/auth/google`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        idToken: makeTestGoogleToken({
+          sub: testGoogleId2, // Already bound to testEmail1
+          email: secondUserEmail,
+          email_verified: true,
+        }),
+      }),
+    });
+    const dupGoogleData = await duplicateGoogleIdRes.json();
+    assert(
+      duplicateGoogleIdRes.status === 409 && dupGoogleData.code === 'GOOGLE_ACCOUNT_CONFLICT',
+      'Attempt to link an already-claimed Google ID to a different user returns HTTP 409 GOOGLE_ACCOUNT_CONFLICT'
+    );
+
     // -----------------------------------------------------------------------
-    // [SECTION 8] Google-Only User Local Password Rejection (No Crash)
+    // [SECTION 9] Google-Only Account Password Login Rejection (No Crash)
     // -----------------------------------------------------------------------
-    console.log('\n[SECTION 8] Testing Google-Only Account Password Login...');
-    // testGoogleEmail has no password. Attempting password login should return 401 cleanly
+    console.log('\n[SECTION 9] Testing Google-Only Account Password Login...');
     const pwAttemptRes = await fetch(`${API_BASE}/auth/login`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -303,29 +389,26 @@ async function runUnifiedAuthSuite() {
     assert(pwAttemptRes.status === 401, 'Password login on Google-only user safely rejected with HTTP 401 without crash');
 
     // -----------------------------------------------------------------------
-    // [SECTION 9] Protected Routes & Role Redirection
+    // [SECTION 10] Protected Routes & Role Redirection
     // -----------------------------------------------------------------------
-    console.log('\n[SECTION 9] Testing Protected Routes & Role Redirects...');
-    // Unauthenticated GET /api/auth/me
+    console.log('\n[SECTION 10] Testing Protected Routes & Role Redirects...');
     const unauthMeRes = await fetch(`${API_BASE}/auth/me`);
     assert(unauthMeRes.status === 401, 'Unauthenticated /api/auth/me rejected with HTTP 401');
 
-    // Authenticated GET /api/auth/me using registered token
     const authMeRes = await fetch(`${API_BASE}/auth/me`, {
       headers: { Authorization: `Bearer ${regData.token}` },
     });
     assert(authMeRes.status === 200, 'Authenticated user accessing /api/auth/me returns HTTP 200');
 
-    // Regular user attempting admin endpoint
     const adminForbiddenRes = await fetch(`${API_BASE}/admin/overview`, {
       headers: { Authorization: `Bearer ${regData.token}` },
     });
     assert(adminForbiddenRes.status === 403, 'Regular user token attempting /api/admin/overview receives HTTP 403 ADMIN_ACCESS_DENIED');
 
     // -----------------------------------------------------------------------
-    // [SECTION 10] Return URL Sanitization (Open-Redirect Defense)
+    // [SECTION 11] Return URL Sanitization (Open-Redirect Defense)
     // -----------------------------------------------------------------------
-    console.log('\n[SECTION 10] Testing Open-Redirect Attack Defenses...');
+    console.log('\n[SECTION 11] Testing Open-Redirect Attack Defenses...');
     assert(sanitizeReturnUrl('/giveaways') === '/giveaways', 'Valid internal path preserved: "/giveaways"');
     assert(sanitizeReturnUrl('/giveaway/iphone-15-pro') === '/giveaway/iphone-15-pro', 'Valid prize detail path preserved');
     assert(sanitizeReturnUrl('https://evil.com') === '/giveaways', 'External URL neutralized to /giveaways');
@@ -335,9 +418,9 @@ async function runUnifiedAuthSuite() {
     assert(sanitizeReturnUrl('data:text/html,<script>alert(1)</script>') === '/giveaways', 'data: scheme neutralized to /giveaways');
 
     // -----------------------------------------------------------------------
-    // [SECTION 11] Canonical Demo Account Regression Check
+    // [SECTION 12] Canonical Demo Account Regression Check
     // -----------------------------------------------------------------------
-    console.log('\n[SECTION 11] Testing Canonical Demo Accounts Login...');
+    console.log('\n[SECTION 12] Testing Canonical Demo Accounts Login...');
     const adminLoginRes = await fetch(`${API_BASE}/auth/login`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },

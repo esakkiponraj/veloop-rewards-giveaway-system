@@ -101,6 +101,14 @@ const userSchema = new mongoose.Schema(
       type: Number,
       default: 10, // 0 - 100
     },
+    termsAcceptedAt: {
+      type: Date,
+      default: null,
+    },
+    termsVersion: {
+      type: String,
+      default: null,
+    },
   },
   {
     timestamps: true,

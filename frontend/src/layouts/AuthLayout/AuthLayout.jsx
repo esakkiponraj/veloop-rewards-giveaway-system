@@ -46,7 +46,7 @@ export const AuthLayout = ({ children }) => {
           <span>•</span>
           <span>Privacy Preserved</span>
           <span>•</span>
-          <span>Zero Real-Money Gambling</span>
+          <span>No Cash Entry Fee</span>
         </div>
         <p className={styles.copyright}>
           &copy; {new Date().getFullYear()} VELOOP Rewards. All rights reserved.

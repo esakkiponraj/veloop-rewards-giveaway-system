@@ -7,19 +7,16 @@ const isMongoConnected = () => mongoose.connection.readyState === 1;
 
 /**
  * Initializes the user ID counter document based on the highest existing numeric VE user ID.
- * Prevents off-by-one errors (e.g. 10843 skipping to 10844).
+ * Uses atomic $max initialization, duplicate initialization retry, and guarantees monotonic allocation.
+ *
+ * System Guarantee: Uniqueness and monotonic allocation only. Does NOT claim permanently gapless IDs.
  */
 export const initializeUserCounter = async () => {
   if (!isMongoConnected()) {
     return;
   }
 
-  const existing = await Counter.findById('userId');
-  if (existing) {
-    return existing.seq;
-  }
-
-  // Find all existing VE-formatted user IDs to discover maximum numeric ID
+  // Discover maximum numeric existing user ID across all VE-formatted user records
   const users = await User.find({ userId: /^VE\d+$/ }, { userId: 1 }).lean();
   let maxNumericId = 10842; // Canonical seed maximum (Alex Vance VE10842)
 
@@ -31,20 +28,29 @@ export const initializeUserCounter = async () => {
   }
 
   try {
-    const created = await Counter.create({ _id: 'userId', seq: maxNumericId });
-    return created.seq;
+    // Atomic $max initialization: sets initial sequence if new, guarantees counter never decrements
+    const counter = await Counter.findOneAndUpdate(
+      { _id: 'userId' },
+      {
+        $setOnInsert: { _id: 'userId' },
+        $max: { seq: maxNumericId },
+      },
+      { upsert: true, new: true, setDefaultsOnInsert: true }
+    );
+    return counter.seq;
   } catch (err) {
-    if (err.code === 11000) {
+    // Duplicate initialization race retry
+    if (err.code === 11000 || (err.name === 'MongoServerError' && err.code === 11000)) {
       const c = await Counter.findById('userId');
-      return c.seq;
+      return c ? c.seq : maxNumericId;
     }
     throw err;
   }
 };
 
 /**
- * Concurrency-safe atomic generation of sequential user IDs.
- * Generates exact sequential ID: maxExisting + 1 (e.g., VE10843).
+ * Concurrency-safe atomic generation of sequential user IDs via atomic $inc.
+ * Guarantees uniqueness and monotonic allocation.
  */
 export const getNextUserId = async () => {
   if (isMongoConnected()) {
@@ -60,6 +66,11 @@ export const getNextUserId = async () => {
   }
 
   // Fallback in-memory store support
+  if (typeof inMemoryDB.getNextSequence === 'function') {
+    const seq = inMemoryDB.getNextSequence('userId');
+    return `VE${String(seq).padStart(5, '0')}`;
+  }
+
   if (!inMemoryDB._userSeq) {
     let maxNumericId = 10842;
     for (const u of inMemoryDB.users) {

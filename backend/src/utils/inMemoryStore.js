@@ -18,7 +18,27 @@ class InMemoryStore {
     this.taskClaims = [];
     this.referrals = [];
     this.withdrawals = [];
+    this.counters = new Map();
     this.initSeed();
+  }
+
+  getNextSequence(name = 'userId') {
+    if (!this.counters) this.counters = new Map();
+    if (!this.counters.has(name)) {
+      let maxNumericId = 10842;
+      for (const u of this.users) {
+        if (u.userId && /^VE\d+$/.test(u.userId)) {
+          const num = parseInt(u.userId.replace(/^VE/, ''), 10);
+          if (!isNaN(num) && num > maxNumericId) {
+            maxNumericId = num;
+          }
+        }
+      }
+      this.counters.set(name, maxNumericId);
+    }
+    const nextVal = this.counters.get(name) + 1;
+    this.counters.set(name, nextVal);
+    return nextVal;
   }
 
   initSeed() {

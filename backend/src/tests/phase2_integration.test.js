@@ -21,7 +21,7 @@ async function runPhase2IntegrationTests() {
   console.log('====================================================\n');
 
   const mongoUri = process.env.MONGO_URI;
-  await mongoose.connect(mongoUri, { serverSelectionTimeoutMS: 5000 });
+  await mongoose.connect(mongoUri, { serverSelectionTimeoutMS: 15000 });
 
   // Sync database indexes
   await GiveawayParticipation.syncIndexes();

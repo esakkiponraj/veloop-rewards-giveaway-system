@@ -23,6 +23,8 @@ const sanitizeUser = (user) => {
     authProviders: user.authProviders || ['LOCAL'],
     isEmailVerified: !!user.isEmailVerified,
     streak: user.streak || 0,
+    termsAcceptedAt: user.termsAcceptedAt || null,
+    termsVersion: user.termsVersion || null,
   };
 };
 
@@ -77,6 +79,30 @@ export const loginUser = async (req, res, next) => {
  */
 export const registerUser = async (req, res, next) => {
   try {
+    // 1. Strict privileged fields defense: Reject payloads with HTTP 400 instead of silently ignoring them
+    const privilegedFields = [
+      'role',
+      'wallet',
+      'isEmailVerified',
+      'googleId',
+      'authProviders',
+      'isAdmin',
+      'admin',
+      'fraudRiskScore',
+      'isFraudSuspended',
+      'isSuspicious',
+      'fraudEvents',
+    ];
+
+    const foundPrivileged = privilegedFields.filter((field) => field in req.body);
+    if (foundPrivileged.length > 0) {
+      return res.status(400).json({
+        success: false,
+        code: 'PRIVILEGED_FIELD_REJECTED',
+        message: `Registration payload must not contain privileged fields: ${foundPrivileged.join(', ')}`,
+      });
+    }
+
     const { name, username, email, password, confirmPassword, acceptTerms } = req.body;
 
     // Validation
@@ -84,7 +110,7 @@ export const registerUser = async (req, res, next) => {
       return res.status(400).json({
         success: false,
         code: 'VALIDATION_ERROR',
-        message: 'Full name, username, email, and password are required.',
+        message: 'Username, email, and password are required.',
       });
     }
 
@@ -116,20 +142,21 @@ export const registerUser = async (req, res, next) => {
       });
     }
 
-    if (typeof password !== 'string' || password.length < 8) {
+    // Authoritative password validation: minimum 10 characters
+    if (typeof password !== 'string' || password.length < 10) {
       return res.status(400).json({
         success: false,
         code: 'WEAK_PASSWORD',
-        message: 'Password must be at least 8 characters long.',
+        message: 'Password must be at least 10 characters long.',
       });
     }
 
-    // Bcrypt 72-byte safe maximum length enforcement
+    // Authoritative bcrypt 72 UTF-8 bytes maximum length enforcement
     if (Buffer.byteLength(password, 'utf8') > 72) {
       return res.status(400).json({
         success: false,
         code: 'PASSWORD_TOO_LONG',
-        message: 'Password must not exceed 72 bytes.',
+        message: 'Password exceeds maximum length of 72 UTF-8 bytes.',
       });
     }
 
@@ -141,13 +168,17 @@ export const registerUser = async (req, res, next) => {
       });
     }
 
-    if (acceptTerms === false) {
+    // Legal terms acceptance requirement with timestamp & version recording
+    if (acceptTerms !== true) {
       return res.status(400).json({
         success: false,
         code: 'TERMS_NOT_ACCEPTED',
         message: 'You must accept the platform rules and terms to register.',
       });
     }
+
+    const CURRENT_TERMS_VERSION = '2026.1';
+    const termsAcceptedAt = new Date();
 
     // Duplicate checks (Email and Username)
     const [existingEmail, existingUsername] = await Promise.all([
@@ -167,7 +198,7 @@ export const registerUser = async (req, res, next) => {
     const userId = await getNextUserId();
     const maskedId = computeMaskedId(userId);
 
-    // Strictly enforce role and zero starting balances
+    // Strictly enforce role and zero starting balances. Local users omit googleId (do not save null)
     const newUser = await repo.createUser({
       userId,
       name: name ? String(name).trim() : '',
@@ -175,15 +206,17 @@ export const registerUser = async (req, res, next) => {
       email: normalizedEmail,
       password,
       maskedId,
-      role: 'user', // Never accept role from request
+      role: 'user',
       wallet: {
-        VEs: 0, // Never accept wallet balances from request
+        VEs: 0,
         SVEs: 0,
         Tokens: 0,
       },
       authProviders: ['LOCAL'],
       isEmailVerified: false,
       streak: 0,
+      termsAcceptedAt,
+      termsVersion: CURRENT_TERMS_VERSION,
     });
 
     res.status(201).json({
@@ -254,6 +287,15 @@ export const googleAuth = async (req, res, next) => {
     let user = await repo.findUserByGoogleId(googleId);
 
     if (user) {
+      // Identity security: Verify that the Google token email matches the user profile email bound to this googleId
+      if (user.email.toLowerCase().trim() !== email) {
+        return res.status(409).json({
+          success: false,
+          code: 'GOOGLE_ACCOUNT_CONFLICT',
+          message: 'This Google ID is already associated with a different user account.',
+        });
+      }
+
       if (user.isFraudSuspended) {
         return res.status(403).json({
           success: false,
@@ -284,16 +326,37 @@ export const googleAuth = async (req, res, next) => {
         });
       }
 
-      // Link Google provider to existing account safely
-      const updatedUser = await repo.linkGoogleAccount(existingUser.userId, googleId);
-      const redirectUrl = updatedUser.role === 'admin' ? '/admin' : '/giveaways';
+      // Ensure this googleId is not already bound to a different user
+      const userWithGoogleId = await repo.findUserByGoogleId(googleId);
+      if (userWithGoogleId && userWithGoogleId.userId !== existingUser.userId) {
+        return res.status(409).json({
+          success: false,
+          code: 'GOOGLE_ACCOUNT_CONFLICT',
+          message: 'This Google account is already linked to another user profile.',
+        });
+      }
 
-      return res.json({
-        success: true,
-        token: generateToken(updatedUser.userId),
-        user: sanitizeUser(updatedUser),
-        redirectUrl,
-      });
+      // Link Google provider to existing account safely, catching concurrent E11000 races
+      try {
+        const updatedUser = await repo.linkGoogleAccount(existingUser.userId, googleId);
+        const redirectUrl = updatedUser.role === 'admin' ? '/admin' : '/giveaways';
+
+        return res.json({
+          success: true,
+          token: generateToken(updatedUser.userId),
+          user: sanitizeUser(updatedUser),
+          redirectUrl,
+        });
+      } catch (linkErr) {
+        if (linkErr.code === 11000 || (linkErr.name === 'MongoServerError' && linkErr.code === 11000)) {
+          return res.status(409).json({
+            success: false,
+            code: 'GOOGLE_ACCOUNT_CONFLICT',
+            message: 'This Google account was linked concurrently by another user.',
+          });
+        }
+        throw linkErr;
+      }
     }
 
     // Create brand new Google user
@@ -313,31 +376,51 @@ export const googleAuth = async (req, res, next) => {
       usernameTaken = await repo.findUserByUsername(finalUsername);
     }
 
-    const newUser = await repo.createUser({
-      userId,
-      name,
-      username: finalUsername,
-      email,
-      maskedId,
-      role: 'user', // Always user
-      wallet: {
-        VEs: 0, // Zero starting balance
-        SVEs: 0,
-        Tokens: 0,
-      },
-      authProviders: ['GOOGLE'],
-      googleId,
-      isEmailVerified: true,
-      streak: 0,
-    });
+    try {
+      const newUser = await repo.createUser({
+        userId,
+        name,
+        username: finalUsername,
+        email,
+        maskedId,
+        role: 'user', // Always user
+        wallet: {
+          VEs: 0, // Zero starting balance
+          SVEs: 0,
+          Tokens: 0,
+        },
+        authProviders: ['GOOGLE'],
+        googleId,
+        isEmailVerified: true,
+        streak: 0,
+        termsAcceptedAt: new Date(),
+        termsVersion: '2026.1',
+      });
 
-    res.status(201).json({
-      success: true,
-      token: generateToken(newUser.userId),
-      user: sanitizeUser(newUser),
-      redirectUrl: '/giveaways',
-    });
+      res.status(201).json({
+        success: true,
+        token: generateToken(newUser.userId),
+        user: sanitizeUser(newUser),
+        redirectUrl: '/giveaways',
+      });
+    } catch (createErr) {
+      if (createErr.code === 11000 || (createErr.name === 'MongoServerError' && createErr.code === 11000)) {
+        return res.status(409).json({
+          success: false,
+          code: 'GOOGLE_ACCOUNT_CONFLICT',
+          message: 'An account with this email or Google ID was registered concurrently.',
+        });
+      }
+      throw createErr;
+    }
   } catch (error) {
+    if (error.code === 11000 || (error.name === 'MongoServerError' && error.code === 11000)) {
+      return res.status(409).json({
+        success: false,
+        code: 'GOOGLE_ACCOUNT_CONFLICT',
+        message: 'This Google account or email is already registered.',
+      });
+    }
     next(error);
   }
 };

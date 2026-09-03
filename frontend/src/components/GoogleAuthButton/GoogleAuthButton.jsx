@@ -4,12 +4,14 @@ import styles from './GoogleAuthButton.module.css';
 export const GoogleAuthButton = ({ onSuccess, onError, text = 'signin_with' }) => {
   const isGoogleAuthEnabled = import.meta.env.VITE_ENABLE_GOOGLE_AUTH === 'true';
   const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
-  const buttonRef = useRef(null);
+  const isClientIdValid = typeof clientId === 'string' && clientId.trim().length > 0;
 
-  // If feature flag is false or client ID is unconfigured, hide the Google button safely
-  if (!isGoogleAuthEnabled || !clientId) {
+  // Strictly fail-closed: requires exact 'true' string and non-empty client ID
+  if (!isGoogleAuthEnabled || !isClientIdValid) {
     return null;
   }
+
+  const buttonRef = useRef(null);
 
   useEffect(() => {
     // Dynamically inject Google Identity Services script if not already present
