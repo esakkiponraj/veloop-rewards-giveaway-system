@@ -16,7 +16,7 @@ export const joinLimiter = rateLimit({
 
 export const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 25, // 25 attempts
+  max: process.env.NODE_ENV === 'production' ? 25 : 1000, // Generous limit in non-production for automated tests
   standardHeaders: true,
   legacyHeaders: false,
   handler: (req, res) => {

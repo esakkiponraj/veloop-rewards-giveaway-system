@@ -172,9 +172,14 @@ export const LandingPage = () => {
                   </Link>
                 )
               ) : (
-                <Link to="/login" className={styles.secondaryBtn}>
-                  <span>Sign In to Your Account</span>
-                </Link>
+                <>
+                  <Link to="/signup" className={styles.secondaryBtn}>
+                    <span>Create Free Account</span>
+                  </Link>
+                  <Link to="/login" className={styles.secondaryBtn}>
+                    <span>Sign In</span>
+                  </Link>
+                </>
               )}
             </div>
           </div>
@@ -614,9 +619,14 @@ export const LandingPage = () => {
                 <ArrowRight size={18} />
               </Link>
               {!isAuthenticated && (
-                <Link to="/login" className={styles.secondaryBtn}>
-                  <span>Sign In to VELOOP</span>
-                </Link>
+                <>
+                  <Link to="/signup" className={styles.secondaryBtn}>
+                    <span>Create Account</span>
+                  </Link>
+                  <Link to="/login" className={styles.secondaryBtn}>
+                    <span>Sign In to VELOOP</span>
+                  </Link>
+                </>
               )}
             </div>
           </div>

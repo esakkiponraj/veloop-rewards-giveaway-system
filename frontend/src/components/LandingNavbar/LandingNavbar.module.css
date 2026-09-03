@@ -126,6 +126,33 @@
   outline-offset: 2px;
 }
 
+.signUpBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.55rem 1.15rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #C084FC;
+  background: rgba(124, 58, 237, 0.12);
+  border: 1px solid rgba(168, 85, 247, 0.3);
+  border-radius: 8px;
+  text-decoration: none;
+  transition: all 0.2s ease;
+}
+
+.signUpBtn:hover {
+  background: rgba(124, 58, 237, 0.25);
+  border-color: rgba(168, 85, 247, 0.6);
+  color: #FFFFFF;
+  transform: translateY(-1px);
+}
+
+.signUpBtn:focus-visible {
+  outline: 2px solid #A855F7;
+  outline-offset: 2px;
+}
+
 .ctaBtn {
   display: inline-flex;
   align-items: center;

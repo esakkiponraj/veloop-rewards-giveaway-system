@@ -130,6 +130,9 @@ export const LandingNavbar = () => {
               <Link to="/login" className={styles.signInBtn}>
                 Sign In
               </Link>
+              <Link to="/signup" className={styles.signUpBtn}>
+                Create Account
+              </Link>
               <Link to="/giveaways" className={styles.ctaBtn}>
                 <span>Explore Giveaways</span>
                 <ArrowRight size={15} />
@@ -214,6 +217,13 @@ export const LandingNavbar = () => {
                   onClick={handleCloseMenu}
                 >
                   Sign In
+                </Link>
+                <Link
+                  to="/signup"
+                  className={styles.signUpBtn}
+                  onClick={handleCloseMenu}
+                >
+                  Create Account
                 </Link>
                 <Link
                   to="/giveaways"

@@ -2,6 +2,7 @@ import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, Outlet } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext.jsx';
 import { DashboardLayout } from './layouts/DashboardLayout.jsx';
+import { AuthLayout } from './layouts/AuthLayout/AuthLayout.jsx';
 import { LandingPage } from './pages/LandingPage/LandingPage.jsx';
 import { GiveawayHome } from './pages/GiveawayHome/GiveawayHome.jsx';
 import { GiveawayDetails } from './pages/GiveawayDetails/GiveawayDetails.jsx';
@@ -14,17 +15,33 @@ import { History } from './pages/History/History.jsx';
 import { Profile } from './pages/Profile/Profile.jsx';
 import { MyEntries } from './pages/MyEntries/MyEntries.jsx';
 import { Login } from './pages/Login/Login.jsx';
+import { Signup } from './pages/Signup/Signup.jsx';
 import { AdminDashboard } from './pages/AdminDashboard/AdminDashboard.jsx';
+import { ProtectedRoute } from './components/RouteGuards/ProtectedRoute.jsx';
+import { AdminRoute } from './components/RouteGuards/AdminRoute.jsx';
+import { PublicOnlyRoute } from './components/RouteGuards/PublicOnlyRoute.jsx';
 
 export const App = () => {
   return (
     <AuthProvider>
       <Router>
         <Routes>
-          {/* Public Landing Page outside DashboardLayout */}
+          {/* 1. Public Landing Page */}
           <Route path="/" element={<LandingPage />} />
 
-          {/* Giveaway Platform & Member Routes inside DashboardLayout */}
+          {/* 2. Standalone Auth Layout for Login and Signup (outside DashboardLayout) */}
+          <Route
+            element={
+              <PublicOnlyRoute>
+                <AuthLayout />
+              </PublicOnlyRoute>
+            }
+          >
+            <Route path="/login" element={<Login />} />
+            <Route path="/signup" element={<Signup />} />
+          </Route>
+
+          {/* 3. Platform & Member Portal Routes inside DashboardLayout */}
           <Route
             element={
               <DashboardLayout>
@@ -32,18 +49,26 @@ export const App = () => {
               </DashboardLayout>
             }
           >
+            {/* Publicly viewable giveaway catalogue */}
             <Route path="/giveaways" element={<GiveawayHome />} />
             <Route path="/giveaway/:slug" element={<GiveawayDetails />} />
-            <Route path="/watch-ads" element={<WatchAds />} />
-            <Route path="/tasks" element={<Tasks />} />
-            <Route path="/referrals" element={<Referrals />} />
-            <Route path="/wallet" element={<Wallet />} />
-            <Route path="/withdraw" element={<Withdraw />} />
-            <Route path="/history" element={<History />} />
-            <Route path="/profile" element={<Profile />} />
-            <Route path="/my-entries" element={<MyEntries />} />
-            <Route path="/login" element={<Login />} />
-            <Route path="/admin" element={<AdminDashboard />} />
+
+            {/* Authenticated member-only routes */}
+            <Route element={<ProtectedRoute />}>
+              <Route path="/wallet" element={<Wallet />} />
+              <Route path="/history" element={<History />} />
+              <Route path="/my-entries" element={<MyEntries />} />
+              <Route path="/profile" element={<Profile />} />
+              <Route path="/withdraw" element={<Withdraw />} />
+              <Route path="/tasks" element={<Tasks />} />
+              <Route path="/watch-ads" element={<WatchAds />} />
+              <Route path="/referrals" element={<Referrals />} />
+            </Route>
+
+            {/* Administrator-only route */}
+            <Route element={<AdminRoute />}>
+              <Route path="/admin" element={<AdminDashboard />} />
+            </Route>
           </Route>
 
           {/* Catch-all route redirects to landing page */}

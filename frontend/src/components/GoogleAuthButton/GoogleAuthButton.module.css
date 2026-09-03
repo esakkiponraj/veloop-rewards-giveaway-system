@@ -1,0 +1,12 @@
+.googleContainer {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  margin: 1rem 0;
+}
+
+.googleBtnSlot {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+}

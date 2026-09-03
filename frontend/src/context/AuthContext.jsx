@@ -1,5 +1,11 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import { getMe, login as apiLogin, getDemoAccounts } from '../services/authApi.js';
+import {
+  getMe,
+  login as apiLogin,
+  register as apiRegister,
+  googleAuth as apiGoogleAuth,
+  getDemoAccounts,
+} from '../services/authApi.js';
 
 const AuthContext = createContext(null);
 
@@ -74,6 +80,38 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  const registerUser = async (formData) => {
+    setLoading(true);
+    try {
+      const res = await apiRegister(formData);
+      if (!res || !res.token) {
+        throw new Error('Registration response did not contain a valid session token.');
+      }
+      localStorage.setItem('veloop_auth_token', res.token);
+      setToken(res.token);
+      setUser(res.user);
+      return res;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const googleLoginUser = async (credential) => {
+    setLoading(true);
+    try {
+      const res = await apiGoogleAuth(credential);
+      if (!res || !res.token) {
+        throw new Error('Google authentication response did not contain a valid session token.');
+      }
+      localStorage.setItem('veloop_auth_token', res.token);
+      setToken(res.token);
+      setUser(res.user);
+      return res;
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const logoutUser = () => {
     localStorage.removeItem('veloop_auth_token');
     setToken(null);
@@ -123,6 +161,8 @@ export const AuthProvider = ({ children }) => {
         loading,
         demoAccounts,
         login: loginUser,
+        register: registerUser,
+        googleLogin: googleLoginUser,
         logout: logoutUser,
         refreshUser,
         updateWallet,
