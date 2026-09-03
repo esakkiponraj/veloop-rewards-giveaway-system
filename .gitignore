@@ -7,15 +7,25 @@ yarn-error.log*
 
 # Environment Variables
 .env
-.env.local
-.env.development.local
-.env.test.local
-.env.production.local
+.env.*
+**/.env
+**/.env.*
+
+# Allow safe environment templates
+!.env.example
+!**/.env.example
+!.env.*.example
+!**/.env.*.example
 
 # Production Builds
 dist/
 build/
 *.tsbuildinfo
+.vite/
+
+# Deployment Local Files
+.vercel/
+.netlify/
 
 # IDE & OS Files
 .DS_Store
