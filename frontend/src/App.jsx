@@ -1,7 +1,8 @@
 import React from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate, Outlet } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext.jsx';
 import { DashboardLayout } from './layouts/DashboardLayout.jsx';
+import { LandingPage } from './pages/LandingPage/LandingPage.jsx';
 import { GiveawayHome } from './pages/GiveawayHome/GiveawayHome.jsx';
 import { GiveawayDetails } from './pages/GiveawayDetails/GiveawayDetails.jsx';
 import { WatchAds } from './pages/WatchAds/WatchAds.jsx';
@@ -19,9 +20,18 @@ export const App = () => {
   return (
     <AuthProvider>
       <Router>
-        <DashboardLayout>
-          <Routes>
-            <Route path="/" element={<GiveawayHome />} />
+        <Routes>
+          {/* Public Landing Page outside DashboardLayout */}
+          <Route path="/" element={<LandingPage />} />
+
+          {/* Giveaway Platform & Member Routes inside DashboardLayout */}
+          <Route
+            element={
+              <DashboardLayout>
+                <Outlet />
+              </DashboardLayout>
+            }
+          >
             <Route path="/giveaways" element={<GiveawayHome />} />
             <Route path="/giveaway/:slug" element={<GiveawayDetails />} />
             <Route path="/watch-ads" element={<WatchAds />} />
@@ -34,9 +44,11 @@ export const App = () => {
             <Route path="/my-entries" element={<MyEntries />} />
             <Route path="/login" element={<Login />} />
             <Route path="/admin" element={<AdminDashboard />} />
-            <Route path="*" element={<Navigate to="/" replace />} />
-          </Routes>
-        </DashboardLayout>
+          </Route>
+
+          {/* Catch-all route redirects to landing page */}
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
       </Router>
     </AuthProvider>
   );
