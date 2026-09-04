@@ -75,12 +75,17 @@ export const DashboardLayout = ({ children }) => {
       <aside className={`${styles.sidebar} ${mobileMenuOpen ? styles.sidebarMobileOpen : ''}`}>
         {/* Brand Logo */}
         <div className={styles.brandArea}>
-          <Link to="/" className={styles.brandLink} onClick={() => setMobileMenuOpen(false)}>
-            <img src="/assets/veloop-logo.svg" alt="VELOOP" className={styles.brandLogo} />
-            <div className={styles.brandTextWrap}>
-              <span className={styles.brandTitle}>VELOOP</span>
-              <span className={styles.brandSubtitle}>REWARDS</span>
-            </div>
+          <Link
+            to="/"
+            className={styles.brandLink}
+            onClick={() => setMobileMenuOpen(false)}
+            aria-label="VELOOP Rewards Home"
+          >
+            <img
+              src="/assets/veloop-logo.svg"
+              alt="VELOOP Rewards"
+              className={styles.brandLogo}
+            />
           </Link>
           <button
             className={styles.mobileCloseBtn}

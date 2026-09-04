@@ -24,7 +24,7 @@ async function runUnifiedAuthSuite() {
   // Enforce test database isolation and reject NODE_ENV=production
   const { testUri, testDbName, maskedUri } = getSafeTestDbConfig();
   console.log(`[Test DB Isolation] Connecting to: ${maskedUri} (Database: "${testDbName}")`);
-  await mongoose.connect(testUri, { serverSelectionTimeoutMS: 5000 });
+  await mongoose.connect(testUri, { serverSelectionTimeoutMS: 15000 });
 
   // Sync schema indexes and seed canonical test profiles in isolated database
   await User.syncIndexes();
