@@ -1,14 +1,15 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { User, Lock, ArrowRight, ShieldCheck, Sparkles, AlertCircle, Loader2 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext.jsx';
 import { sanitizeReturnUrl } from '../../utils/urlSanitizer.js';
+import { GoogleAuthButton } from '../../components/GoogleAuthButton/GoogleAuthButton.jsx';
 import styles from './Login.module.css';
 
 export const Login = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { user, login, loading: authLoading } = useAuth();
+  const { user, login, googleLogin, loading: authLoading } = useAuth();
 
   const queryParams = new URLSearchParams(location.search);
   const rawReturnUrl = location.state?.from || queryParams.get('returnUrl') || '';
@@ -222,6 +223,38 @@ export const Login = () => {
               )}
             </button>
           </form>
+
+          {/* Google Sign-In (Feature-Flagged) */}
+          <GoogleAuthButton
+            text="signin_with"
+            onSuccess={async (credential) => {
+              setLoading(true);
+              setErrorMsg('');
+              try {
+                const res = await googleLogin(credential);
+                const targetUrl = safeReturnUrl && safeReturnUrl !== '/login'
+                  ? safeReturnUrl
+                  : (res?.user?.role === 'admin' ? '/admin' : '/giveaways');
+                navigate(targetUrl, { replace: true });
+              } catch (err) {
+                setErrorMsg(err.message || 'Google sign-in failed.');
+              } finally {
+                setLoading(false);
+              }
+            }}
+            onError={(err) => setErrorMsg(err.message || 'Google authentication encountered an error.')}
+          />
+
+          {/* Link to Signup */}
+          <div style={{ textAlign: 'center', marginTop: '1.25rem', fontSize: '0.875rem', color: 'var(--text-muted, #94A3B8)' }}>
+            <span>Don't have an account?</span>{' '}
+            <Link
+              to={safeReturnUrl ? `/signup?returnUrl=${encodeURIComponent(safeReturnUrl)}` : '/signup'}
+              style={{ color: '#A855F7', fontWeight: 600, textDecoration: 'none' }}
+            >
+              Create an Account
+            </Link>
+          </div>
 
           <div className={styles.footerNote}>
             <ShieldCheck size={14} aria-hidden="true" />

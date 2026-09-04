@@ -1,29 +1,20 @@
 /**
- * Strict open-redirect defense: only allows safe relative application routes
- * Unsafe or external return URLs safely fall back to '/giveaways'
+ * Sanitizes return URLs to defend against open-redirect and phishing attacks.
+ * Allows only internal absolute paths starting with a single '/' and rejects
+ * protocol-relative ('//'), backslash ('/\\'), and scheme-based ('javascript:', 'data:') attacks.
  */
-export const sanitizeReturnUrl = (url, defaultFallback = '/giveaways') => {
-  if (!url || typeof url !== 'string') return defaultFallback;
+export const sanitizeReturnUrl = (url, defaultPath = '/giveaways') => {
+  if (!url || typeof url !== 'string') return defaultPath;
   const trimmed = url.trim();
 
-  // Must begin with single '/' and never '//' (protocol-relative external redirect)
-  if (!trimmed.startsWith('/') || trimmed.startsWith('//')) {
-    return defaultFallback;
+  // Must start with exactly one '/' and cannot start with '//' or '/\'
+  if (!trimmed.startsWith('/') || trimmed.startsWith('//') || trimmed.startsWith('/\\')) {
+    return defaultPath;
   }
 
-  // Reject URL schemes, backslashes, encoded slashes, or script injections
-  const lower = trimmed.toLowerCase();
-  if (
-    lower.includes('javascript:') ||
-    lower.includes('data:') ||
-    lower.includes('vbscript:') ||
-    lower.includes('http:') ||
-    lower.includes('https:') ||
-    lower.includes('%2f%2f') ||
-    lower.includes('%5c') ||
-    lower.includes('\\')
-  ) {
-    return defaultFallback;
+  // Reject URL scheme injection
+  if (/^[a-zA-Z][a-zA-Z0-9+.-]*:/.test(trimmed)) {
+    return defaultPath;
   }
 
   return trimmed;

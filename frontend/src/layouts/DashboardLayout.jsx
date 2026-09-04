@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { NavLink, Link, useNavigate, useLocation } from 'react-router-dom';
+import { NavLink, Link, useNavigate, useLocation, Outlet } from 'react-router-dom';
 import {
   Gift,
   Tv,
@@ -33,7 +33,7 @@ export const DashboardLayout = ({ children }) => {
   const [bonusClaiming, setBonusClaiming] = useState(false);
 
   const navItems = [
-    { name: 'Giveaways', path: '/', icon: Gift },
+    { name: 'Giveaways', path: '/giveaways', icon: Gift },
     { name: 'Watch Ads', path: '/watch-ads', icon: Tv, badge: 'Hot' },
     { name: 'Tasks', path: '/tasks', icon: CheckSquare },
     { name: 'Referrals', path: '/referrals', icon: Users },
@@ -75,12 +75,17 @@ export const DashboardLayout = ({ children }) => {
       <aside className={`${styles.sidebar} ${mobileMenuOpen ? styles.sidebarMobileOpen : ''}`}>
         {/* Brand Logo */}
         <div className={styles.brandArea}>
-          <Link to="/" className={styles.brandLink} onClick={() => setMobileMenuOpen(false)}>
-            <img src="/assets/veloop-logo.svg" alt="VELOOP" className={styles.brandLogo} />
-            <div className={styles.brandTextWrap}>
-              <span className={styles.brandTitle}>VELOOP</span>
-              <span className={styles.brandSubtitle}>REWARDS</span>
-            </div>
+          <Link
+            to="/"
+            className={styles.brandLink}
+            onClick={() => setMobileMenuOpen(false)}
+            aria-label="VELOOP Rewards Home"
+          >
+            <img
+              src="/assets/veloop-logo.svg"
+              alt="VELOOP Rewards"
+              className={styles.brandLogo}
+            />
           </Link>
           <button
             className={styles.mobileCloseBtn}
@@ -97,7 +102,7 @@ export const DashboardLayout = ({ children }) => {
           <ul className={styles.navList}>
             {navItems.map((item) => {
               const IconComp = item.icon;
-              const isActive = location.pathname === item.path || (item.path === '/' && location.pathname === '/giveaways');
+              const isActive = location.pathname === item.path;
               return (
                 <li key={item.path} className={styles.navItem}>
                   <NavLink
@@ -281,12 +286,12 @@ export const DashboardLayout = ({ children }) => {
         </header>
 
         {/* Main Content Body */}
-        <main className={styles.contentBody}>{children}</main>
+        <main className={styles.contentBody}>{children || <Outlet />}</main>
 
         {/* 3. MOBILE BOTTOM NAVIGATION BAR */}
         <nav className={styles.mobileBottomNav}>
           <NavLink
-            to="/"
+            to="/giveaways"
             className={({ isActive }) =>
               `${styles.mobileNavItem} ${isActive ? styles.mobileNavActive : ''}`
             }

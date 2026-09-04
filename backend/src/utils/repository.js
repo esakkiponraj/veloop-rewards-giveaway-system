@@ -50,6 +50,88 @@ export const repo = {
     };
   },
 
+  findUserByGoogleId: async (googleId) => {
+    if (isMongoConnected()) {
+      return await User.findOne({ googleId });
+    }
+    const u = inMemoryDB.users.find((user) => user.googleId === googleId);
+    if (!u) return null;
+    return {
+      ...u,
+      matchPassword: async (p) => (u.password ? await bcrypt.compare(p, u.password) : false),
+    };
+  },
+
+  findUserByEmail: async (email) => {
+    const normalized = email.toLowerCase().trim();
+    if (isMongoConnected()) {
+      return await User.findOne({ email: normalized });
+    }
+    const u = inMemoryDB.users.find((user) => user.email.toLowerCase() === normalized);
+    if (!u) return null;
+    return {
+      ...u,
+      matchPassword: async (p) => (u.password ? await bcrypt.compare(p, u.password) : false),
+    };
+  },
+
+  findUserByUsername: async (username) => {
+    const trimmed = username.trim();
+    if (isMongoConnected()) {
+      return await User.findOne({ username: { $regex: new RegExp(`^${trimmed}$`, 'i') } });
+    }
+    const u = inMemoryDB.users.find((user) => user.username.toLowerCase() === trimmed.toLowerCase());
+    if (!u) return null;
+    return {
+      ...u,
+      matchPassword: async (p) => (u.password ? await bcrypt.compare(p, u.password) : false),
+    };
+  },
+
+  createUser: async (userData) => {
+    if (isMongoConnected()) {
+      const user = new User(userData);
+      await user.save();
+      return user;
+    }
+    const userWithHashedPw = { ...userData };
+    if (userData.password) {
+      const salt = await bcrypt.genSalt(10);
+      userWithHashedPw.password = await bcrypt.hash(userData.password, salt);
+    }
+    inMemoryDB.users.push(userWithHashedPw);
+    return {
+      ...userWithHashedPw,
+      matchPassword: async (p) => (userWithHashedPw.password ? await bcrypt.compare(p, userWithHashedPw.password) : false),
+    };
+  },
+
+  linkGoogleAccount: async (userId, googleId) => {
+    if (isMongoConnected()) {
+      return await User.findOneAndUpdate(
+        { userId },
+        {
+          $set: { googleId, isEmailVerified: true },
+          $addToSet: { authProviders: 'GOOGLE' },
+        },
+        { new: true }
+      );
+    }
+    const u = inMemoryDB.users.find((user) => user.userId === userId);
+    if (u) {
+      u.googleId = googleId;
+      u.isEmailVerified = true;
+      if (!u.authProviders) u.authProviders = ['LOCAL'];
+      if (!u.authProviders.includes('GOOGLE')) u.authProviders.push('GOOGLE');
+    }
+    return u;
+  },
+
+  getNextUserId: async () => {
+    const { getNextUserId } = await import('../services/userIdService.js');
+    return await getNextUserId();
+  },
+
   findUserById: async (userId) => {
     if (isMongoConnected()) {
       return await User.findOne({ userId }).select('-password');
