@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   Tv,
   Sparkles,
@@ -41,6 +41,16 @@ export const WatchAds = () => {
   const [rewardNotice, setRewardNotice] = useState(null);
   const [completionError, setCompletionError] = useState(null);
 
+  const timerRef = useRef(null);
+  const closeBtnRef = useRef(null);
+
+  const clearAdTimer = () => {
+    if (timerRef.current) {
+      clearInterval(timerRef.current);
+      timerRef.current = null;
+    }
+  };
+
   const fetchAdsData = async () => {
     try {
       setLoading(true);
@@ -63,14 +73,52 @@ export const WatchAds = () => {
     fetchAdsData();
   }, [user]);
 
+  // Clean up timer and unlock scroll on component unmount
+  useEffect(() => {
+    return () => {
+      clearAdTimer();
+      document.body.style.overflow = '';
+    };
+  }, []);
+
+  // Lock background scrolling while modal is open
+  useEffect(() => {
+    if (watchingAd) {
+      document.body.style.overflow = 'hidden';
+      // Automatically focus the close button for accessibility
+      setTimeout(() => {
+        closeBtnRef.current?.focus();
+      }, 50);
+    } else {
+      document.body.style.overflow = '';
+    }
+    return () => {
+      document.body.style.overflow = '';
+    };
+  }, [watchingAd]);
+
+  // Handle Escape key to cancel/close modal
+  useEffect(() => {
+    if (!watchingAd) return;
+
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        handleCloseModal();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [watchingAd]);
+
   // Countdown timer during ad watch
   useEffect(() => {
-    let timer;
-    if (watchingAd && timeLeft > 0) {
-      timer = setInterval(() => {
+    if (watchingAd && timeLeft > 0 && !isWatchingComplete) {
+      timerRef.current = setInterval(() => {
         setTimeLeft((prev) => {
           if (prev <= 1) {
-            clearInterval(timer);
+            clearAdTimer();
             handleAdFinished(watchingAd);
             return 0;
           }
@@ -78,11 +126,12 @@ export const WatchAds = () => {
         });
       }, 1000);
     }
-    return () => clearInterval(timer);
-  }, [watchingAd, timeLeft]);
+    return () => clearAdTimer();
+  }, [watchingAd, isWatchingComplete]);
 
   const handleStartWatching = (ad) => {
-    if (ad.watched) return;
+    // Prevent starting concurrent sessions
+    if (ad.watched || watchingAd) return;
     setWatchingAd(ad);
     setTimeLeft(ad.duration || 15);
     setIsWatchingComplete(false);
@@ -136,7 +185,9 @@ export const WatchAds = () => {
     }
   };
 
+  // Closing before completion cancels the watch session and grants NO reward
   const handleCloseModal = () => {
+    clearAdTimer();
     setWatchingAd(null);
     setTimeLeft(0);
     setIsWatchingComplete(false);
@@ -318,7 +369,8 @@ export const WatchAds = () => {
                     <button
                       className={ad.watched ? styles.watchedBtn : styles.watchBtn}
                       onClick={() => handleStartWatching(ad)}
-                      disabled={ad.watched}
+                      disabled={ad.watched || watchingAd !== null}
+                      aria-disabled={ad.watched || watchingAd !== null}
                     >
                       {ad.watched ? (
                         <>
@@ -340,81 +392,150 @@ export const WatchAds = () => {
         )}
       </section>
 
-      {/* 4. INTERACTIVE WATCHING & REWARD MODAL */}
-      {watchingAd && (
-        <div className={styles.modalBackdrop}>
-          <div className={styles.modalCard}>
-            <div className={styles.modalTopBar}>
-              <div className={styles.modalBrandBadge}>
-                <span>{watchingAd.logo}</span>
-                <strong>{watchingAd.brand}</strong>
-              </div>
-              <button
-                className={styles.modalCloseBtn}
-                onClick={handleCloseModal}
-                disabled={timeLeft > 0 && !isWatchingComplete}
-                title={timeLeft > 0 ? 'Watching in progress' : 'Close'}
-              >
-                <X size={18} />
-              </button>
-            </div>
+      {/* 4. INTERACTIVE 16:9 WATCHING & REWARD MODAL PLAYER */}
+      {watchingAd && (() => {
+        const activeDuration = watchingAd.duration || 15;
+        const elapsedSec = Math.max(0, activeDuration - timeLeft);
+        const adProgressPercent = Math.min(100, Math.max(0, Math.round((elapsedSec / activeDuration) * 100)));
 
-            {/* Video Player Display */}
-            <div className={styles.videoPlayerArea}>
-              {timeLeft > 0 ? (
-                <div className={styles.playerStreamSimulation}>
-                  <div className={styles.streamOverlayGlow} />
-                  <div className={styles.countdownCenter}>
-                    <div className={styles.timerCircle}>
-                      <span className={styles.timerNum}>{timeLeft}</span>
-                      <span className={styles.timerUnit}>SEC</span>
+        return (
+          <div
+            className={styles.modalBackdrop}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="ad-player-title"
+            onClick={(e) => {
+              if (e.target === e.currentTarget) handleCloseModal();
+            }}
+          >
+            <div className={styles.modalCard}>
+              {/* Modal Top Bar */}
+              <div className={styles.modalTopBar}>
+                <div className={styles.modalBrandBadge}>
+                  <span className={styles.modalCategoryPill}>{watchingAd.category || 'Sponsor'}</span>
+                  <div className={styles.modalTitleWrap}>
+                    <span className={styles.modalLogoIcon}>{watchingAd.logo || '📺'}</span>
+                    <h2 id="ad-player-title" className={styles.modalAdTitle}>
+                      {watchingAd.brand} — {watchingAd.tagline}
+                    </h2>
+                  </div>
+                </div>
+                <button
+                  ref={closeBtnRef}
+                  type="button"
+                  className={styles.modalCloseBtn}
+                  onClick={handleCloseModal}
+                  aria-label="Cancel and close advertisement player"
+                  title="Close and cancel stream"
+                >
+                  <X size={20} />
+                </button>
+              </div>
+
+              {/* Responsive 16:9 Video Player Display Area */}
+              <div className={styles.videoPlayerArea}>
+                {timeLeft > 0 ? (
+                  <div className={styles.playerStreamSimulation}>
+                    <div className={styles.streamOverlayGlow} />
+
+                    {/* Top Status Overlay Row */}
+                    <div className={styles.playerTopRow}>
+                      <div className={styles.playingStatusBadge}>
+                        <span className={styles.pulsingDot} />
+                        <span>Advertisement Playing</span>
+                      </div>
+                      <div className={styles.guaranteedRewardBadge}>
+                        <Zap size={13} />
+                        <span>Guaranteed: +{watchingAd.reward} {watchingAd.currency || 'VEs'}</span>
+                      </div>
                     </div>
-                    <p className={styles.streamNotice}>
-                      Streaming Partner Campaign: <strong>{watchingAd.brand}</strong>
+
+                    {/* Center Stream Visual & Countdown */}
+                    <div className={styles.countdownCenter}>
+                      <div className={styles.timerCircle}>
+                        <span className={styles.timerNum}>{timeLeft}</span>
+                        <span className={styles.timerUnit}>SEC</span>
+                      </div>
+                      <p className={styles.streamNotice}>
+                        Official Sponsor: <strong>{watchingAd.brand}</strong>
+                      </p>
+                    </div>
+
+                    {/* Bottom Progress Bar & Stream Controls */}
+                    <div className={styles.playerBottomOverlay}>
+                      <div
+                        className={styles.progressBarTrack}
+                        role="progressbar"
+                        aria-valuenow={adProgressPercent}
+                        aria-valuemin="0"
+                        aria-valuemax="100"
+                        aria-label="Ad watch progress"
+                      >
+                        <div
+                          className={styles.progressBarFill}
+                          style={{ width: `${adProgressPercent}%` }}
+                        />
+                      </div>
+                      <div className={styles.playerControlsRow}>
+                        <span className={styles.remainingSecondsText}>
+                          <Clock size={13} />
+                          <span>{timeLeft}s remaining</span>
+                        </span>
+                        <button
+                          type="button"
+                          className={styles.cancelStreamBtn}
+                          onClick={handleCloseModal}
+                          title="Closing cancels stream without granting rewards"
+                        >
+                          Cancel Stream
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ) : isSubmittingCompletion ? (
+                  <div className={styles.submittingBox}>
+                    <RefreshCw size={36} className={styles.spinner} />
+                    <p>Validating ad completion & crediting your {watchingAd.currency || 'VEs'} reward...</p>
+                  </div>
+                ) : completionError ? (
+                  <div className={styles.errorModalBox}>
+                    <AlertCircle size={36} />
+                    <h3>Reward Verification Failed</h3>
+                    <p>{completionError}</p>
+                    <button onClick={handleCloseModal} className="btn-veloop-secondary">
+                      Close
+                    </button>
+                  </div>
+                ) : rewardNotice ? (
+                  <div className={styles.rewardCelebrationBox}>
+                    <div className={styles.celebrationCheck}>
+                      <CheckCircle2 size={48} />
+                    </div>
+                    <h3 className={styles.celebrationTitle}>Reward Credited!</h3>
+                    <div className={styles.celebrationRewardBig}>
+                      <span className={styles.plusChar}>+</span>
+                      <strong>{rewardNotice.reward}</strong>
+                      <span>{rewardNotice.currency}</span>
+                    </div>
+                    <p className={styles.celebrationSub}>
+                      Authoritative balance updated for viewing {rewardNotice.brand}.
                     </p>
-                    <span className={styles.streamRewardTag}>
-                      Guaranteed Reward: +{watchingAd.reward} {watchingAd.currency}
-                    </span>
+                    {rewardNotice.transactionId && (
+                      <div className={styles.txnIdBadge}>
+                        Txn ID: <code>{rewardNotice.transactionId}</code>
+                      </div>
+                    )}
+                    <button onClick={handleCloseModal} className="btn-veloop-primary">
+                      <span>Collect & Continue</span>
+                      <ArrowRight size={16} />
+                    </button>
                   </div>
-                </div>
-              ) : isSubmittingCompletion ? (
-                <div className={styles.submittingBox}>
-                  <RefreshCw size={32} className={styles.spinner} />
-                  <p>Validating ad completion & crediting your VE reward...</p>
-                </div>
-              ) : completionError ? (
-                <div className={styles.errorModalBox}>
-                  <AlertCircle size={32} />
-                  <h3>Reward Verification Failed</h3>
-                  <p>{completionError}</p>
-                  <button onClick={handleCloseModal} className="btn-veloop-secondary">
-                    Close
-                  </button>
-                </div>
-              ) : rewardNotice ? (
-                <div className={styles.rewardCelebrationBox}>
-                  <div className={styles.celebrationCheck}>
-                    <CheckCircle2 size={48} />
-                  </div>
-                  <h3 className={styles.celebrationTitle}>Reward Credited!</h3>
-                  <div className={styles.celebrationRewardBig}>
-                    <span>+</span>
-                    <strong>{rewardNotice.reward}</strong>
-                    <span>{rewardNotice.currency}</span>
-                  </div>
-                  <p className={styles.celebrationSub}>
-                    Successfully credited for viewing {rewardNotice.brand}.
-                  </p>
-                  <button onClick={handleCloseModal} className="btn-veloop-primary">
-                    <span>Collect & Continue</span>
-                    <ArrowRight size={16} />
-                  </button>
-                </div>
-              ) : null}
+                ) : null}
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
     </div>
   );
 };

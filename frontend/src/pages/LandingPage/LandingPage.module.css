@@ -4,8 +4,12 @@
   min-height: 100vh;
   background-color: var(--bg-primary, #050611);
   color: var(--text-primary, #FFFFFF);
-  overflow-x: hidden;
+  overflow-x: clip;
   position: relative;
+}
+
+.landingPage section[id] {
+  scroll-margin-top: 88px;
 }
 
 .sectionContainer {

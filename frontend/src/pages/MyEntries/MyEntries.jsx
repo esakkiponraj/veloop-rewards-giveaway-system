@@ -82,7 +82,7 @@ export const MyEntries = () => {
             <Gift size={48} className={styles.emptyIcon} />
             <h3>No Active Participations Yet</h3>
             <p>You haven't joined any giveaways yet. Explore our featured prizes and use your VEs/SVEs balance to participate!</p>
-            <Link to="/" className="btn-veloop-primary">
+            <Link to="/giveaways" className="btn-veloop-primary">
               <span>Explore Giveaways</span>
               <ArrowRight size={16} />
             </Link>

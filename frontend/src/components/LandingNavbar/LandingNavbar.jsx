@@ -11,10 +11,29 @@ export const LandingNavbar = () => {
   const toggleBtnRef = useRef(null);
   const drawerRef = useRef(null);
 
-  // Close drawer and restore focus to trigger button
+  // Close drawer and restore focus to trigger button without scrolling
   const handleCloseMenu = () => {
     setMobileMenuOpen(false);
-    toggleBtnRef.current?.focus();
+    toggleBtnRef.current?.focus({ preventScroll: true });
+  };
+
+  // Smooth scroll handler for section anchor links with hash preservation and reduced-motion check
+  const handleNavClick = (e, href) => {
+    if (mobileMenuOpen) {
+      setMobileMenuOpen(false);
+      toggleBtnRef.current?.focus({ preventScroll: true });
+    }
+
+    const target = document.querySelector(href);
+    if (target) {
+      e.preventDefault();
+      window.history.pushState(null, '', href);
+      const prefersReduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      target.scrollIntoView({
+        behavior: prefersReduced ? 'auto' : 'smooth',
+        block: 'start',
+      });
+    }
   };
 
   // Lock body scroll when mobile menu is open; release on close or unmount
@@ -73,10 +92,10 @@ export const LandingNavbar = () => {
   }, [mobileMenuOpen]);
 
   const navLinks = [
-    { label: 'Live Giveaway', href: '#active-giveaway' },
+    { label: 'Live Giveaway', href: '#live-giveaway' },
     { label: 'How It Works', href: '#how-it-works' },
     { label: 'Currencies', href: '#currencies' },
-    { label: 'Security & Trust', href: '#trust' },
+    { label: 'Security & Trust', href: '#security' },
     { label: 'Winners', href: '#winners' },
     { label: 'FAQ', href: '#faq' },
   ];
@@ -102,7 +121,12 @@ export const LandingNavbar = () => {
         {/* Desktop Navigation Links */}
         <nav className={styles.navMenu} aria-label="Main Navigation">
           {navLinks.map((item) => (
-            <a key={item.label} href={item.href} className={styles.navLink}>
+            <a
+              key={item.label}
+              href={item.href}
+              className={styles.navLink}
+              onClick={(e) => handleNavClick(e, item.href)}
+            >
               {item.label}
             </a>
           ))}
@@ -171,7 +195,7 @@ export const LandingNavbar = () => {
                 <a
                   href={item.href}
                   className={styles.mobileNavLink}
-                  onClick={handleCloseMenu}
+                  onClick={(e) => handleNavClick(e, item.href)}
                 >
                   {item.label}
                 </a>

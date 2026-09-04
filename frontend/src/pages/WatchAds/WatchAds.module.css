@@ -947,3 +947,507 @@
     gap: 12px;
   }
 }
+
+/* ==========================================================================
+   7. INTERACTIVE 16:9 WATCHING & REWARD MODAL PLAYER
+   ========================================================================== */
+.modalBackdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1200;
+  background: rgba(5, 6, 17, 0.88);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  animation: modalFadeIn 0.25s ease-out;
+  box-sizing: border-box;
+}
+
+.modalCard {
+  background: #0C0E1E;
+  border: 1px solid rgba(139, 92, 246, 0.35);
+  border-radius: 16px;
+  width: 100%;
+  max-width: 780px;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.85), 0 0 40px rgba(124, 58, 237, 0.25);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  animation: modalSlideUp 0.25s ease-out;
+  position: relative;
+}
+
+.modalTopBar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 20px;
+  background: rgba(13, 16, 35, 0.95);
+  border-bottom: 1px solid rgba(148, 163, 184, 0.12);
+  gap: 12px;
+}
+
+.modalBrandBadge {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  min-width: 0;
+}
+
+.modalCategoryPill {
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #C084FC;
+  background: rgba(139, 92, 246, 0.18);
+  border: 1px solid rgba(139, 92, 246, 0.35);
+  padding: 3px 8px;
+  border-radius: 4px;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.modalTitleWrap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.modalLogoIcon {
+  font-size: 1.2rem;
+  flex-shrink: 0;
+}
+
+.modalAdTitle {
+  font-family: var(--font-heading, sans-serif);
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: #FFFFFF;
+  margin: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.modalCloseBtn {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  color: #CBD5E1;
+  border-radius: 8px;
+  padding: 6px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: all 0.2s ease;
+}
+
+.modalCloseBtn:hover {
+  background: rgba(239, 68, 68, 0.18);
+  border-color: rgba(239, 68, 68, 0.4);
+  color: #EF4444;
+}
+
+.modalCloseBtn:focus-visible {
+  outline: 2px solid #A855F7;
+  outline-offset: 2px;
+}
+
+/* 16:9 Aspect Ratio Advertisement Frame */
+.videoPlayerArea {
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  position: relative;
+  background: #050611;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.playerStreamSimulation {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 20px 24px;
+  position: relative;
+  background: radial-gradient(circle at center, rgba(35, 26, 75, 0.65) 0%, rgba(5, 6, 17, 0.98) 100%);
+  box-sizing: border-box;
+}
+
+.streamOverlayGlow {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: radial-gradient(circle at 50% 50%, rgba(124, 58, 237, 0.2) 0%, transparent 65%);
+  animation: pulseGlow 4s infinite ease-in-out;
+}
+
+.playerTopRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  z-index: 2;
+  width: 100%;
+  gap: 12px;
+}
+
+.playingStatusBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(5, 6, 17, 0.85);
+  border: 1px solid rgba(34, 197, 94, 0.45);
+  padding: 5px 12px;
+  border-radius: 20px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #22C55E;
+  backdrop-filter: blur(8px);
+}
+
+.pulsingDot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #22C55E;
+  box-shadow: 0 0 10px #22C55E;
+  animation: pulseDot 1.5s infinite;
+}
+
+.guaranteedRewardBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(245, 158, 11, 0.16);
+  border: 1px solid rgba(245, 158, 11, 0.4);
+  padding: 5px 12px;
+  border-radius: 20px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: #FBBF24;
+  backdrop-filter: blur(8px);
+}
+
+.countdownCenter {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  z-index: 2;
+  gap: 12px;
+}
+
+.timerCircle {
+  width: 88px;
+  height: 88px;
+  border-radius: 50%;
+  background: rgba(13, 16, 35, 0.92);
+  border: 3px solid #7C3AED;
+  box-shadow: 0 0 28px rgba(124, 58, 237, 0.55), inset 0 0 14px rgba(124, 58, 237, 0.35);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.timerNum {
+  font-family: var(--font-heading, sans-serif);
+  font-size: 2.1rem;
+  font-weight: 800;
+  color: #FFFFFF;
+  line-height: 1;
+}
+
+.timerUnit {
+  font-size: 0.65rem;
+  font-weight: 700;
+  color: #A855F7;
+  letter-spacing: 0.12em;
+}
+
+.streamNotice {
+  font-size: 0.9rem;
+  color: var(--text-secondary, #CBD5E1);
+  margin: 0;
+  text-align: center;
+}
+
+.streamNotice strong {
+  color: #FFFFFF;
+}
+
+.playerBottomOverlay {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: 100%;
+  z-index: 2;
+}
+
+.progressBarTrack {
+  width: 100%;
+  height: 6px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.14);
+  overflow: hidden;
+}
+
+.progressBarFill {
+  height: 100%;
+  background: linear-gradient(90deg, #7C3AED 0%, #A855F7 50%, #22C55E 100%);
+  border-radius: 4px;
+  transition: width 0.3s linear;
+}
+
+.playerControlsRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.remainingSecondsText {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--text-secondary, #94A3B8);
+}
+
+.cancelStreamBtn {
+  background: transparent;
+  border: 1px solid rgba(148, 163, 184, 0.25);
+  color: var(--text-secondary, #CBD5E1);
+  font-size: 0.78rem;
+  font-weight: 600;
+  padding: 4px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.cancelStreamBtn:hover {
+  background: rgba(239, 68, 68, 0.15);
+  border-color: rgba(239, 68, 68, 0.4);
+  color: #EF4444;
+}
+
+/* Submission Spinner */
+.submittingBox {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  padding: 32px;
+  text-align: center;
+  color: #CBD5E1;
+}
+
+.spinner {
+  color: #A855F7;
+  animation: spin 1s linear infinite;
+}
+
+/* Error Modal Box */
+.errorModalBox {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 32px;
+  text-align: center;
+  color: #EF4444;
+}
+
+.errorModalBox h3 {
+  color: #FFFFFF;
+  margin: 0;
+  font-size: 1.25rem;
+}
+
+.errorModalBox p {
+  color: var(--text-secondary, #CBD5E1);
+  font-size: 0.9rem;
+  margin: 0 0 12px 0;
+}
+
+/* Reward Celebration State */
+.rewardCelebrationBox {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 28px 24px;
+  text-align: center;
+  width: 100%;
+}
+
+.celebrationCheck {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  background: rgba(34, 197, 94, 0.15);
+  color: #22C55E;
+  border: 1px solid rgba(34, 197, 94, 0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 0 28px rgba(34, 197, 94, 0.45);
+}
+
+.celebrationTitle {
+  font-family: var(--font-heading, sans-serif);
+  font-size: 1.6rem;
+  font-weight: 800;
+  color: #FFFFFF;
+  margin: 4px 0 0 0;
+}
+
+.celebrationRewardBig {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+  font-family: var(--font-heading, sans-serif);
+  font-size: 2.2rem;
+  font-weight: 800;
+  color: #22C55E;
+}
+
+.plusChar {
+  font-size: 1.5rem;
+}
+
+.celebrationSub {
+  font-size: 0.9rem;
+  color: var(--text-secondary, #CBD5E1);
+  margin: 0;
+  max-width: 440px;
+}
+
+.txnIdBadge {
+  font-size: 0.75rem;
+  color: var(--text-muted, #94A3B8);
+  background: rgba(0, 0, 0, 0.45);
+  border: 1px solid rgba(148, 163, 184, 0.15);
+  padding: 4px 12px;
+  border-radius: 6px;
+  margin-top: 4px;
+}
+
+.txnIdBadge code {
+  color: #C084FC;
+  font-family: monospace;
+}
+
+/* Animations */
+@keyframes modalFadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes modalSlideUp {
+  from {
+    transform: translateY(18px) scale(0.98);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0) scale(1);
+    opacity: 1;
+  }
+}
+
+@keyframes pulseDot {
+  0%, 100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.35);
+    opacity: 0.6;
+  }
+}
+
+@keyframes pulseGlow {
+  0%, 100% {
+    opacity: 0.25;
+  }
+  50% {
+    opacity: 0.55;
+  }
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Modal Responsive Tuning */
+@media (max-width: 640px) {
+  .modalBackdrop {
+    padding: 12px;
+  }
+
+  .modalCard {
+    border-radius: 12px;
+  }
+
+  .modalTopBar {
+    padding: 10px 14px;
+  }
+
+  .modalAdTitle {
+    font-size: 0.9rem;
+  }
+
+  .playerStreamSimulation {
+    padding: 12px 14px;
+  }
+
+  .playingStatusBadge,
+  .guaranteedRewardBadge {
+    padding: 4px 8px;
+    font-size: 0.72rem;
+  }
+
+  .timerCircle {
+    width: 68px;
+    height: 68px;
+  }
+
+  .timerNum {
+    font-size: 1.5rem;
+  }
+
+  .streamNotice {
+    font-size: 0.8rem;
+  }
+
+  .celebrationTitle {
+    font-size: 1.3rem;
+  }
+
+  .celebrationRewardBig {
+    font-size: 1.8rem;
+  }
+}

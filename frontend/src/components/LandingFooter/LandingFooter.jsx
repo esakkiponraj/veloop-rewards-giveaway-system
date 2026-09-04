@@ -42,7 +42,7 @@ export const LandingFooter = () => {
                 </Link>
               </li>
               <li>
-                <a href="#active-giveaway" className={styles.link}>
+                <a href="#live-giveaway" className={styles.link}>
                   Featured Prize
                 </a>
               </li>
@@ -97,12 +97,12 @@ export const LandingFooter = () => {
                 </a>
               </li>
               <li>
-                <a href="#trust" className={styles.link}>
+                <a href="#security" className={styles.link}>
                   Platform Integrity Policy
                 </a>
               </li>
               <li>
-                <a href="#active-giveaway" className={styles.link}>
+                <a href="#live-giveaway" className={styles.link}>
                   Campaign Rules & Deadlines
                 </a>
               </li>

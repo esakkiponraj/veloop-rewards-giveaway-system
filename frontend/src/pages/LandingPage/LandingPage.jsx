@@ -68,6 +68,21 @@ export const LandingPage = () => {
     loadPlatformData();
   }, [loadPlatformData]);
 
+  // If page loads with a hash anchor, scroll to target section once content finishes loading
+  useEffect(() => {
+    if (!loading && window.location.hash) {
+      const target = document.querySelector(window.location.hash);
+      if (target) {
+        setTimeout(() => {
+          target.scrollIntoView({
+            behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth',
+            block: 'start',
+          });
+        }, 100);
+      }
+    }
+  }, [loading]);
+
   // Real-time countdown timer directly to giveaway.endAt from API
   useEffect(() => {
     const endAtDate = giveawayData?.giveaway?.endAt;
@@ -209,10 +224,10 @@ export const LandingPage = () => {
             2. ACTIVE GIVEAWAY PREVIEW (DIRECT API DATA ONLY)
             ================================================================== */}
         {!loading && !error && activeGiveaway && (
-          <section id="active-giveaway" className={styles.sectionContainer} aria-labelledby="active-giveaway-heading">
+          <section id="live-giveaway" className={styles.sectionContainer} aria-labelledby="live-giveaway-heading">
             <div className={styles.sectionHeader}>
               <span className={styles.sectionBadge}>ACTIVE CAMPAIGN</span>
-              <h2 id="active-giveaway-heading" className={styles.sectionTitle}>
+              <h2 id="live-giveaway-heading" className={styles.sectionTitle}>
                 {activeGiveaway.title}
               </h2>
               {activeGiveaway.subtitle && (
@@ -469,10 +484,10 @@ export const LandingPage = () => {
         {/* ==================================================================
             5. TRUST & INTEGRITY ARCHITECTURE
             ================================================================== */}
-        <section id="trust" className={styles.sectionContainer} aria-labelledby="trust-heading">
+        <section id="security" className={styles.sectionContainer} aria-labelledby="security-heading">
           <div className={styles.sectionHeader}>
             <span className={styles.sectionBadge}>SYSTEM INTEGRITY</span>
-            <h2 id="trust-heading" className={styles.sectionTitle}>
+            <h2 id="security-heading" className={styles.sectionTitle}>
               Fairness, Integrity & Transparency
             </h2>
             <p className={styles.sectionSubtitle}>

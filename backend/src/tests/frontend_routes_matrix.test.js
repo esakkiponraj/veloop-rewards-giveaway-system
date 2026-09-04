@@ -1,4 +1,10 @@
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
 import { sanitizeReturnUrl } from '../../../frontend/src/utils/urlSanitizer.js';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 /**
  * Simulates Route Guard decision functions based on exact implementation in:
@@ -120,6 +126,80 @@ async function runRouteMatrixSuite() {
   assert(
     userProtocolRelative.action === 'REDIRECT' && userProtocolRelative.target === '/giveaways',
     'Authenticated user with protocol-relative returnUrl=//evil.com safely neutralizes to /giveaways'
+  );
+
+  // 9. My Entries Empty State CTA Route Verification
+  const myEntriesPath = path.resolve(__dirname, '../../../frontend/src/pages/MyEntries/MyEntries.jsx');
+  const myEntriesContent = fs.readFileSync(myEntriesPath, 'utf-8');
+  
+  // Extract link target around Explore Giveaways CTA
+  const exploreCtaMatch = myEntriesContent.match(/<Link\s+to=["']([^"']+)["'][^>]*>\s*<span>Explore Giveaways<\/span>/s);
+  const ctaTarget = exploreCtaMatch ? exploreCtaMatch[1] : null;
+
+  assert(
+    ctaTarget === '/giveaways',
+    `My Entries empty state "Explore Giveaways" CTA navigates specifically to /giveaways (Found: "${ctaTarget}")`
+  );
+
+  // 10. CTA must not navigate to public landing page or individual prize
+  assert(
+    ctaTarget !== '/' && !ctaTarget?.startsWith('/giveaway/'),
+    `My Entries empty state CTA does not link to landing page "/" or specific prize detail (Target: "${ctaTarget}")`
+  );
+
+  // 11. Landing Page Section Navigation Mappings in LandingNavbar.jsx
+  const landingNavbarPath = path.resolve(__dirname, '../../../frontend/src/components/LandingNavbar/LandingNavbar.jsx');
+  const landingNavbarContent = fs.readFileSync(landingNavbarPath, 'utf-8');
+
+  const expectedNavMappings = [
+    { label: 'Live Giveaway', href: '#live-giveaway' },
+    { label: 'How It Works', href: '#how-it-works' },
+    { label: 'Currencies', href: '#currencies' },
+    { label: 'Security & Trust', href: '#security' },
+    { label: 'Winners', href: '#winners' },
+    { label: 'FAQ', href: '#faq' },
+  ];
+
+  const allMappingsPresent = expectedNavMappings.every((m) =>
+    landingNavbarContent.includes(`label: '${m.label}', href: '${m.href}'`)
+  );
+  assert(
+    allMappingsPresent,
+    'LandingNavbar.jsx contains all 6 required section mappings (#live-giveaway, #how-it-works, #currencies, #security, #winners, #faq)'
+  );
+
+  // 12. LandingPage.jsx Section Target IDs
+  const landingPagePath = path.resolve(__dirname, '../../../frontend/src/pages/LandingPage/LandingPage.jsx');
+  const landingPageContent = fs.readFileSync(landingPagePath, 'utf-8');
+
+  const requiredSectionIds = ['live-giveaway', 'how-it-works', 'currencies', 'security', 'winners', 'faq'];
+  const allSectionsPresent = requiredSectionIds.every((id) =>
+    landingPageContent.includes(`id="${id}"`)
+  );
+  assert(
+    allSectionsPresent,
+    'LandingPage.jsx contains target section elements for all 6 anchor IDs'
+  );
+
+  // 13. LandingPage.module.css Scroll Margin Top for 72px Navbar Clearance
+  const landingCssPath = path.resolve(__dirname, '../../../frontend/src/pages/LandingPage/LandingPage.module.css');
+  const landingCssContent = fs.readFileSync(landingCssPath, 'utf-8');
+
+  assert(
+    landingCssContent.includes('scroll-margin-top: 88px;'),
+    'LandingPage.module.css applies scroll-margin-top: 88px to sections to prevent navbar overlap'
+  );
+
+  // 14. Sticky Navbar positioning & overflow-x: clip (no overflow: hidden parent block)
+  const navbarCssPath = path.resolve(__dirname, '../../../frontend/src/components/LandingNavbar/LandingNavbar.module.css');
+  const navbarCssContent = fs.readFileSync(navbarCssPath, 'utf-8');
+
+  const navbarIsSticky = navbarCssContent.includes('position: sticky;') && navbarCssContent.includes('top: 0;');
+  const landingUsesClip = landingCssContent.includes('overflow-x: clip;');
+
+  assert(
+    navbarIsSticky && landingUsesClip,
+    'LandingNavbar uses position: sticky at top: 0 and LandingPage uses overflow-x: clip (sticky unblocked)'
   );
 
   console.log('\n====================================================');
